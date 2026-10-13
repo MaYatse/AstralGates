@@ -21,8 +21,8 @@ internal class LXRenderer : Control
 
     Image ToImg()
     {
-        
-        byte[] bytes = shader.RenderRgbaToBytes();
+
+        byte[] bytes = [];//shader.RenderRgbaToBytes();
 
         Image img = LX.Image.LoadFromRGBA(1920 / 2, 1080 / 2, bytes);
         return img;

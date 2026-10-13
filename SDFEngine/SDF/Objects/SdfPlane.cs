@@ -17,4 +17,5 @@ public class SdfPlane(Vector3 position, Vector3 normal) : ISdfObject
         throw new NotImplementedException();
     }
 
+    public Vector3 GetNormal(Vector3 point) => normal;
 }

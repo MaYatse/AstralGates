@@ -25,19 +25,19 @@ public class RenderBenchmarks
     }
 
     [Benchmark]
-    public Vector3[] RenderLowRes_Vectors() => _shaderLowRes!.Render();
+    public Vector3[] RenderLowRes_Vectors() => _shaderLowRes!.SimpleRender();
 
     [Benchmark]
     public byte[] RenderLowRes_Bytes() => _shaderLowRes!.RenderRgbaToBytes();
 
     [Benchmark]
-    public Vector3[] RenderMediumRes_Vectors() => _shaderMediumRes!.Render();
+    public Vector3[] RenderMediumRes_Vectors() => _shaderMediumRes!.SimpleRender();
 
     [Benchmark]
     public byte[] RenderMediumRes_Bytes() => _shaderMediumRes!.RenderRgbaToBytes();
 
     [Benchmark]
-    public Vector3[] RenderHighRes_Vectors() => _shaderHighRes!.Render();
+    public Vector3[] RenderHighRes_Vectors() => _shaderHighRes!.SimpleRender();
 
     [Benchmark]
     public byte[] RenderHighRes_Bytes() => _shaderHighRes!.RenderRgbaToBytes();

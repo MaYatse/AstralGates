@@ -7,6 +7,8 @@ namespace SDFEngine.SDF.Utility;
 
 public class SdCompositor(List<ISdfObject> sdfObjects, List<ILight>? lights = null)
 {
+    const float maxDistance = 1000f;
+    const float epsilon = 0.001f;
     public float Map(Vector3 point)
     {
         float minDistance = float.PositiveInfinity;
@@ -36,61 +38,55 @@ public class SdCompositor(List<ISdfObject> sdfObjects, List<ILight>? lights = nu
         return closestObject;
     }
 
-    public Vector3 GetNormal(Vector3 point)
-    {
-        const float epsilon = 0.001f;
-
-        var dx = new Vector3(epsilon, 0, 0);
-        var dy = new Vector3(0, epsilon, 0);
-        var dz = new Vector3(0, 0, epsilon);
-
-        var gradient = new Vector3(
-            Map(point + dx) - Map(point - dx),
-            Map(point + dy) - Map(point - dy),
-            Map(point + dz) - Map(point - dz)
-        );
-
-        return Vector3.Normalize(gradient);
-    }
     public MarchResult RayMarch(Vector3 origin, Vector3 direction)
     {
-        float dist = 0;
+        float fullDistance = 0;
         
-        for (int i = 0; i < 1000; i++)
+        for (int i = 0; i < maxDistance; i++)
         {
-            Vector3 current = origin + direction * dist;
-            float dS = Map(current);
-            dist += dS;
-            if (dS < 0.001 || dist > 1000.0) return new(dist, current, GetClosestObject(current));
+            Vector3 current = origin + direction * fullDistance;
+
+            if (fullDistance >= maxDistance)
+                return new(fullDistance, current, null);
+
+            float mapDistance = Map(current);
+
+            if (mapDistance < epsilon) 
+                return new(fullDistance, current, GetClosestObject(current));
+
+            fullDistance += mapDistance;
         }
 
-        return new(dist, Vector3.Zero, null);
+        return new(fullDistance, Vector3.Zero, null);
     }
 
-    public float DiffusedRender(Vector3 origin, Vector3 direction)
+    public Vector3 DiffusedRender(Vector3 origin, Vector3 direction)
     {
-        (float dist, Vector3 collisionPoint, _) = RayMarch(origin, direction);
-        float result = 0;
+        var hit = RayMarch(origin, direction);
+        
+        if (hit.ClosestObject is null) return new(0);
 
-        if (dist >= 100) return result;
+        if (lights is null) return new(0);
 
-        result = 1;
+        var normal = hit.ClosestObject.GetNormal(hit.CollisionPoint);
 
-        if (lights is null) return result;
+        Vector3 lighting = Vector3.Zero;
 
-        var normal = GetNormal(collisionPoint);
-
-        float lightIntensity = 0;
-
-        foreach (var light in lights)
+        if (lights is not null)
         {
-            lightIntensity += light.LightMethod(collisionPoint, normal);
+            foreach (var light in lights)
+            {
+                var sample = light.Sample(hit.CollisionPoint);
+
+                float diffuse = MathF.Max(
+                    Vector3.Dot(normal, sample.DirectionToLight), 0f);
+
+                lighting += sample.Radiance * diffuse;
+            }
         }
 
-        result = lightIntensity / lights.Count;
-
-        return result;
+        return lighting;
     }
 }
 
-public record MarchResult(float Dist, Vector3 CollisionPoint, ISdfObject? ClosestObject);
+public readonly record struct MarchResult(float Dist, Vector3 CollisionPoint, ISdfObject? ClosestObject);

@@ -2,7 +2,12 @@
 
 namespace SDFEngine.SDF.Light;
 
+public readonly record struct LightSample(
+    Vector3 DirectionToLight,
+    Vector3 Radiance,
+    float Distance);
+
 public interface ILight
 {
-    public float LightMethod(Vector3 point, Vector3 normal);
+    LightSample Sample(Vector3 point);
 }

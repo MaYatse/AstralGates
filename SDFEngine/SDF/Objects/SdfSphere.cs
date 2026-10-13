@@ -13,4 +13,6 @@ public class SdfSphere(Vector3 position, float radius) : ISdfObject
     public void Rotate(Vector3 axis, float angle) => throw new NotImplementedException();
 
     public void Set(Vector3 position) => _position = position;
+
+    public Vector3 GetNormal(Vector3 point) => Vector3.Normalize(point - _position);
 }
