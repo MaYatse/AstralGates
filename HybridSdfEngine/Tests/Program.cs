@@ -4,7 +4,10 @@ using System.Text;
 using HybridSdfEngine.Render;
 
 RayTracingChecks.Run();
+SceneChecks.Run();
 LightChecks.Run();
+ExtendedLightChecks.Run();
+ShadowChecks.Run();
 ConsoleDisplayStateChecks.Run();
 
 using var output = new MemoryStream();

@@ -21,14 +21,14 @@ internal class ConsoleRenderer
         try
         {
             pipeline.Angle = 10f;
-            Shader shader = new(Console.WindowWidth / 2, Console.WindowHeight - 2, pipeline.ShDr);
+            var (width, height) = GetResolution();
+            Shader shader = new(width, height, pipeline.ShDr);
 
             var time = Stopwatch.StartNew();
             double lastTime = time.Elapsed.TotalSeconds;
             while (!cancellation.IsCancellationRequested)
             {
-                int resX = Console.WindowWidth / 2;
-                int resY = Console.WindowHeight - 2;
+                var (resX, resY) = GetResolution();
                 if (shader.ResolutionX != resX || shader.ResolutionY != resY)
                     shader.SetResolution(resX, resY);
 
@@ -49,4 +49,7 @@ internal class ConsoleRenderer
             Console.CancelKeyPress -= OnCancel;
         }
     }
+
+    private static (int Width, int Height) GetResolution() =>
+        (Math.Max(1, Console.WindowWidth / 2), Math.Max(1, Console.WindowHeight - 2));
 }

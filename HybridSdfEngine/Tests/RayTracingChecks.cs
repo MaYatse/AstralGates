@@ -1,6 +1,7 @@
 using System.Numerics;
 using HybridSdfEngine.SDF.Objects;
-using HybridSdfEngine.SDF.Utility;
+using HybridSdfEngine.SDF;
+using HybridSdfEngine.SDF.Tracing;
 
 internal static class RayTracingChecks
 {
@@ -56,7 +57,7 @@ internal static class RayTracingChecks
 
         var nearSphere = new SdfSphere(new(0, 0, 3), 1);
         var backPlane = new SdfPlane(new(0, 0, 10), -Vector3.UnitZ);
-        foreach (var scene in new[] { new SdCompositor([backPlane, nearSphere]), new SdCompositor([nearSphere, backPlane]) })
+        foreach (var scene in new[] { new SceneTracer(new Scene([backPlane, nearSphere])), new SceneTracer(new Scene([nearSphere, backPlane])) })
         {
             var hit = scene.Trace(Vector3.Zero, new(0, 0, 7));
             Check(ReferenceEquals(hit.ClosestObject, nearSphere), "Nearest analytic object independent of order");
@@ -65,30 +66,30 @@ internal static class RayTracingChecks
         }
 
         var sdfFront = new SdfOnly(nearSphere);
-        var mixed = new SdCompositor([backPlane, sdfFront]);
+        var mixed = new SceneTracer(new Scene([backPlane, sdfFront]));
         var frontHit = mixed.Trace(Vector3.Zero, Vector3.UnitZ);
         Check(ReferenceEquals(frontHit.ClosestObject, sdfFront), "SDF occludes analytic plane");
         Near(frontHit.Dist, 2f, "SDF hit distance");
         Check(sdfFront.DistanceCalls == 2, "No second object scan after marching hit");
 
         var sdfBack = new SdfOnly(new SdfSphere(new(0, 0, 20), 1));
-        var backHit = new SdCompositor([sdfBack, backPlane]).Trace(Vector3.Zero, Vector3.UnitZ);
+        var backHit = new SceneTracer(new Scene([sdfBack, backPlane])).Trace(Vector3.Zero, Vector3.UnitZ);
         Check(ReferenceEquals(backHit.ClosestObject, backPlane), "Analytic plane occludes SDF");
         Check(sdfBack.DistanceCalls == 1, "Stop marching at analytic distance");
 
         var sdfInside = new SdfOnly(sphere);
-        Near(new SdCompositor([sdfInside]).Trace(Vector3.Zero, Vector3.UnitX).Dist, 1f, "Exit from SDF interior");
-        Check(!new SdCompositor([sdfBack]).Trace(Vector3.Zero, Vector3.UnitZ, 10f).Hit, "SDF beyond range");
-        Check(!new SdCompositor([]).Trace(Vector3.Zero, Vector3.UnitZ).Hit, "Empty scene");
+        Near(new SceneTracer(new Scene([sdfInside])).Trace(Vector3.Zero, Vector3.UnitX).Dist, 1f, "Exit from SDF interior");
+        Check(!new SceneTracer(new Scene([sdfBack])).Trace(Vector3.Zero, Vector3.UnitZ, 10f).Hit, "SDF beyond range");
+        Check(!new SceneTracer(new Scene([])).Trace(Vector3.Zero, Vector3.UnitZ).Hit, "Empty scene");
 
         var slow = new SdfOnly(nearSphere, 0.01f);
-        var exhausted = new SdCompositor([slow, backPlane]).Trace(Vector3.Zero, Vector3.UnitZ, maxSteps: 1);
+        var exhausted = new SceneTracer(new Scene([slow, backPlane])).Trace(Vector3.Zero, Vector3.UnitZ, maxSteps: 1);
         Check(exhausted.StepLimitReached && !exhausted.Hit, "Budget exhaustion must not expose unverified background");
 
         var exactOnly = new ExactOnly(nearSphere);
-        Check(new SdCompositor([exactOnly]).Trace(Vector3.Zero, Vector3.UnitZ).Hit, "Analytic path never calls DistanceTo");
+        Check(new SceneTracer(new Scene([exactOnly])).Trace(Vector3.Zero, Vector3.UnitZ).Hit, "Analytic path never calls DistanceTo");
         var moving = new SdfSphere(new(0, 0, 3), 1);
-        var movingScene = new SdCompositor([moving]);
+        var movingScene = new SceneTracer(new Scene([moving]));
         moving.Move(new(0, 0, 2));
         Near(movingScene.Trace(Vector3.Zero, Vector3.UnitZ).Dist, 4f, "Transforms remain visible after scene construction");
 
