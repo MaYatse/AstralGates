@@ -18,9 +18,10 @@ internal static class LightChecks
         sun.RayDirection = new(3, 0, 0);
         Near(sun.RayDirection, Vector3.UnitX, "Normalized ray direction getter");
         Near(sun.Sample(Vector3.Zero).DirectionToLight, -Vector3.UnitX, "Direction points toward sun");
-        sun.SetColor(Vector3.One, 2f);
-        Near(sun.Sample(Vector3.Zero).Radiance, new(2), "Legacy SetColor updates radiance");
-        Near(sun.Sample(Vector3.Zero).DirectionToLight, -Vector3.UnitX, "SetColor preserves direction");
+        sun.Color = Vector3.One;
+        sun.Intensity = 2f;
+        Near(sun.Sample(Vector3.Zero).Radiance, new(2), "Color and intensity update radiance");
+        Near(sun.Sample(Vector3.Zero).DirectionToLight, -Vector3.UnitX, "Color and intensity preserve direction");
         if (light.Intensity != 2f || !float.IsPositiveInfinity(sun.Sample(Vector3.Zero).Distance))
             throw new Exception("Sun parameter updates must preserve infinite distance");
 

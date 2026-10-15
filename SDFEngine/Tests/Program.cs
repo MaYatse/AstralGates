@@ -5,9 +5,10 @@ using HybridSdfEngine.Render;
 
 RayTracingChecks.Run();
 LightChecks.Run();
+ConsoleDisplayStateChecks.Run();
 
 using var output = new MemoryStream();
-var display = new ConsoleDisplay(output);
+using var display = new ConsoleDisplay(output);
 var screen = new Screen(24, 8);
 string Capture()
 {
@@ -79,7 +80,7 @@ for (int i = 0; i < first.Length; i++)
     first[i] = new(random.NextSingle(), random.NextSingle(), random.NextSingle());
     second[i] = new(random.NextSingle(), random.NextSingle(), random.NextSingle());
 }
-var optimized = new ConsoleDisplay(Stream.Null);
+using var optimized = new ConsoleDisplay(Stream.Null);
 void Old(Vector3[] pixels)
 {
     var builder = new StringBuilder();
