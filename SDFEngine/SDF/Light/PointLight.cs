@@ -1,15 +1,19 @@
 ﻿using System.Numerics;
 
-namespace SDFEngine.SDF.Light;
+namespace HybridSdfEngine.SDF.Light;
 
 public class PointLight(
     Vector3 position,
     Vector3 color,
     float intensity) : ILight
 {
+    public Vector3 Position { get; set; } = position;
+    public Vector3 Color { get; set; } = color;
+    public float Intensity { get; set; } = intensity;
+
     public LightSample Sample(Vector3 point)
     {
-        Vector3 offset = position - point;
+        Vector3 offset = Position - point;
         float distanceSquared = offset.LengthSquared();
 
         if (distanceSquared <= 1e-12f)
@@ -19,7 +23,7 @@ public class PointLight(
 
         return new(
             offset / distance,
-            color * (intensity / distanceSquared),
+            Color * (Intensity / distanceSquared),
             distance);
     }
 }

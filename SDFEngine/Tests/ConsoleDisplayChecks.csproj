@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../SDFEngine.csproj" />
+    <ProjectReference Include="..\HybridSdfEngine.csproj" />
   </ItemGroup>
 </Project>

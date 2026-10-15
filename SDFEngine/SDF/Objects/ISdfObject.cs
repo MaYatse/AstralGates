@@ -1,9 +1,10 @@
 ﻿using System.Numerics;
 
-namespace SDFEngine.SDF.Objects;
+namespace HybridSdfEngine.SDF.Objects;
 
 public interface ISdfObject
 {
+    Vector3 Color => new(1);
     float DistanceTo(Vector3 point);
     void Move(Vector3 axis);
     void Set(Vector3 position);

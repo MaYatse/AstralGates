@@ -2,7 +2,7 @@ using System.Buffers.Text;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace SDFEngine.Render;
+namespace HybridSdfEngine.Render;
 
 /// <summary>Reusable true-color ANSI renderer. Use one instance from one thread.</summary>
 public class ConsoleDisplay
@@ -83,9 +83,9 @@ public class ConsoleDisplay
         }
     }
 
-    public void ColoredGraphic(int resolutionX, int resolutionY, Vector3[] itog)
+    public void ColoredGraphic(int resolutionX, int resolutionY, Vector3[] colors)
     {
-        int count = Validate(resolutionX, resolutionY, itog);
+        int count = Validate(resolutionX, resolutionY, colors);
         if (_width != resolutionX || _height != resolutionY)
         {
             _pending = new int[count];
@@ -98,33 +98,36 @@ public class ConsoleDisplay
         _colored = true;
         int activeColor = -1;
         for (int y = 0; y < resolutionY; y++)
-        {
-            bool positioned = false;
-            for (int x = 0; x < resolutionX; x++)
-            {
-                int index = y * resolutionX + x;
-                Vector3 pixel = itog[index];
-                int color = (Channel(pixel.X) << 16) | (Channel(pixel.Y) << 8) | Channel(pixel.Z);
-                _pending[index] = color;
-                if (_hasDisplayedFrame && _displayed[index] == color)
-                {
-                    positioned = false;
-                    continue;
-                }
-                if (!positioned)
-                {
-                    Cursor(y + 1, x * 2 + 1);
-                    positioned = true;
-                }
-                if (activeColor != color)
-                {
-                    ColorAndPixel(color);
-                    activeColor = color;
-                }
-                else Append("  "u8);
-            }
-        }
+            AppendColoredRow(y, resolutionX, colors, ref activeColor);
         if (_length > 0) Append("\u001b[0m"u8);
+    }
+
+    private void AppendColoredRow(int row, int width, Vector3[] pixels, ref int activeColor)
+    {
+        bool positioned = false;
+        for (int x = 0; x < width; x++)
+        {
+            int index = row * width + x;
+            Vector3 pixel = pixels[index];
+            int color = (Channel(pixel.X) << 16) | (Channel(pixel.Y) << 8) | Channel(pixel.Z);
+            _pending[index] = color;
+            if (_hasDisplayedFrame && _displayed[index] == color)
+            {
+                positioned = false;
+                continue;
+            }
+            if (!positioned)
+            {
+                Cursor(row + 1, x * 2 + 1);
+                positioned = true;
+            }
+            if (activeColor != color)
+            {
+                ColorAndPixel(color);
+                activeColor = color;
+            }
+            else Append("  "u8);
+        }
     }
 
     private static int Channel(float value) => value > 0 ? (int)MathF.Min(value * 255, 255) : 0;
@@ -159,7 +162,7 @@ public class ConsoleDisplay
         ArgumentNullException.ThrowIfNull(pixels);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        if (width > (int.MaxValue - 1) / 2) throw new ArgumentOutOfRangeException(nameof(width));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(width, (int.MaxValue - 1) / 2);
         int count = checked(width * height);
         if (pixels.Length < count) throw new ArgumentException("Pixel array is smaller than the frame.", nameof(pixels));
         return count;

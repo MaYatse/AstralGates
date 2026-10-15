@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Text;
-using SDFEngine.Render;
+using HybridSdfEngine.Render;
+
+RayTracingChecks.Run();
+LightChecks.Run();
 
 using var output = new MemoryStream();
 var display = new ConsoleDisplay(output);

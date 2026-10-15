@@ -1,7 +1,7 @@
-﻿
-using SDFEngine.SDF.Light;
-using SDFEngine.SDF.Objects;
-using SDFEngine.SDF.Utility;
+﻿//#define PRIKOL
+using HybridSdfEngine.SDF.Light;
+using HybridSdfEngine.SDF.Objects;
+using HybridSdfEngine.SDF.Utility;
 using System.Numerics;
 
 namespace AstralGates;
@@ -10,23 +10,46 @@ public class RenderPipeline
 {
     public float Time { get; set; }
     static readonly SdfSphere _sphere = new(new(1, 5, 0), 2);
-    static readonly SdfBox _box = new(new(-1, 1, 0), new(1));
+    static readonly SdfBox _box = new(new(0, 3, 0), new(0.5f, 1.5f, 0.5f));
+    static readonly SunLight _sl = new(new (0, -1, 0.5f), new (1), 1);
+
+#if PRIKOL
     readonly SdCompositor sd = new([
-        _sphere,
         _box,
+        new SdfSphere(new(1, 1, 0), 1),
+        new SdfSphere(new(-1, 1, 0), 1),
+        new SdfSphere(new(0, 4.5f, -.1f), .5f, Vector3.Normalize( new(222, 118, 194))),
+
+        new SdfPlane(new(0, 0, 0), Vector3.Normalize( new(0, 1, 0))),
+    ], [
+        //new PointLight(new(2, 5, -3), new(1), 10)
+        _sl
+    ]);
+#else
+    readonly SdCompositor sd = new([
+        _box,
+        _sphere,
+
         new SdfPlane(new(0, 0, 0), Vector3.Normalize( new(0, 1, 0))),
     ], [
         new PointLight(new(2, 5, -3), new(1), 10)
-        //new SunLight(new(0, -1, 0.1f), new(1), 1)
     ]);
+#endif
     public float Angle { get; set; } = 0;
 
     static float Sin(float x) => MathF.Sin(x);
 
-    public void UpdateScene()
+
+    public void UpdateScene(float deltaTime)
     {
-        _sphere.Set(new(1, 5 - Sin(Time / (MathF.PI * 180) / 1000) * 10, 0));
-        _box.Rotate(new(0, 1, 0), Angle);
+        _box.Rotate(new(0, 1, 0), Angle * deltaTime);
+        _sphere.Set(new Vector3(5, 0.5f + 2f * Sin(MathF.Tau * Time / 10f), 1));
+        Time += deltaTime;
+        const float colorPeriod = 1f;
+        float green = 0.5f + 0.5f * Sin(MathF.Tau * Time / colorPeriod);
+        float red = 1-( 0.5f + 0.5f * Sin(MathF.Tau * Time / colorPeriod));
+        float blue =  1f * Sin(MathF.Tau * Time / colorPeriod / 2);
+        _sl.Color = new(red, green, blue);
     }
 
     public Vector3 ShDr(Vector2 fragCord, Vector2 resolution)

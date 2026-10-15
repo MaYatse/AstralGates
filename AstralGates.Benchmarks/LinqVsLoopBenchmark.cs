@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
-using SDFEngine.SDF.Objects;
+using HybridSdfEngine.SDF.Objects;
 using System.Numerics;
 
 namespace AstralGates.Benchmarks;

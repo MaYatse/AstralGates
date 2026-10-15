@@ -1,4 +1,4 @@
-﻿using SDFEngine.Render;
+﻿using HybridSdfEngine.Render;
 using System.Diagnostics;
 
 namespace AstralGates;
@@ -11,10 +11,12 @@ internal class ConsoleRenderer
     public async Task Start()
     {
         bool run = true;
-        var time = Stopwatch.StartNew();
-        pipeline.Angle = .01f;
+        
+        pipeline.Angle = 10f;
         Shader shader = new(Console.WindowWidth / 2, Console.WindowHeight - 2, pipeline.ShDr);
 
+        var time = Stopwatch.StartNew();
+        double lastTime = time.Elapsed.TotalSeconds;
         while (run)
         {
             int resX = Console.WindowWidth / 2;
@@ -22,10 +24,12 @@ internal class ConsoleRenderer
             if (shader.ResolutionX != resX || shader.ResolutionY != resY)
                 shader.SetResolution(resX, resY);
 
-            pipeline.Time = (float)time.Elapsed.TotalMicroseconds;
-            pipeline.UpdateScene();
+            double currentTime = time.Elapsed.TotalSeconds;
+            float deltaTime = (float)(currentTime - lastTime);
+            lastTime = currentTime;
+            pipeline.UpdateScene(deltaTime);
             
-            var test = shader.RenderWithGamma();
+            var test = shader.RenderWithGammaSsaa4();
 
             display.ColoredGraphic(resX, resY, test);
             display.Render();

@@ -4,8 +4,11 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="AstralGates/AstralGates.csproj" />
+  <Folder Name="/Tests/">
+    <Project Path="SDFEngine/Tests/ConsoleDisplayChecks.csproj" />
+  </Folder>
   <Project Path="AstralGates.Benchmarks/AstralGates.Benchmarks.csproj" />
-  <Project Path="SDFEngine/SDFEngine.csproj" Id="fc6f91ca-e77b-4b8d-856c-e21583e2c2e4" />
+  <Project Path="AstralGates/AstralGates.csproj" />
+  <Project Path="SDFEngine/HybridSdfEngine.csproj" Id="fc6f91ca-e77b-4b8d-856c-e21583e2c2e4" />
   <Project Path="Starter/Starter.vcxproj" Id="b5a6d79d-f833-4d85-a933-711725c5b9c4" />
 </Solution>

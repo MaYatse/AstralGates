@@ -1,8 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
-using SDFEngine.SDF.Objects;
-using SDFEngine.SDF.Light;
-using SDFEngine.SDF.Utility;
+using HybridSdfEngine.SDF.Objects;
+using HybridSdfEngine.SDF.Light;
+using HybridSdfEngine.SDF.Utility;
 using System.Numerics;
 
 namespace AstralGates.Benchmarks;
@@ -24,7 +24,7 @@ public class SdfBenchmarks
         _plane = new SdfPlane(new Vector3(0, -5, 0), new Vector3(0, 1, 0));
         _compositor = new SdCompositor(
             [_sphere, _plane],
-            [new PointLight(new Vector3(2, 5, -3))]
+            [new PointLight(new Vector3(2, 5, -3), Vector3.One, 1f)]
         );
         _testOrigin = new Vector3(0, 1, -10);
         _testDirection = Vector3.Normalize(new Vector3(0, 0, 1));
@@ -37,7 +37,7 @@ public class SdfBenchmarks
     public float PlaneDistance() => _plane!.DistanceTo(_testOrigin);
 
     [Benchmark]
-    public float CompositorRender() => _compositor!.DiffusedRender(_testOrigin, _testDirection);
+    public Vector3 CompositorRender() => _compositor!.DiffusedRender(_testOrigin, _testDirection);
 
     [Benchmark]
     public void CompositorRender_1000Rays()
