@@ -3,6 +3,8 @@ using HybridSdfEngine.SDF.Light;
 using HybridSdfEngine.SDF.Objects;
 using HybridSdfEngine.SDF;
 using HybridSdfEngine.Render;
+using HybridSdfEngine.Materials;
+using HybridSdfEngine.Textures;
 using System.Numerics;
 
 namespace AstralGates;
@@ -27,7 +29,7 @@ public class RenderPipeline
             new SdfSphere(new(-1, 1, 0), 1),
             new SdfSphere(new(0, 4.5f, -.1f), .5f, Vector3.Normalize( new(222, 118, 194))),
 
-            new SdfPlane(new(0, 0, 0), Vector3.Normalize( new(0, 1, 0))),
+            CreateFloor(),
         ], [
             //new PointLight(new(2, 5, -3), new(1), 10)
             _sl
@@ -37,7 +39,7 @@ public class RenderPipeline
             _box,
             _sphere,
 
-            new SdfPlane(new(0, 0, 0), Vector3.Normalize( new(0, 1, 0))),
+            CreateFloor(),
         ], [
             new PointLight(new(2, 5, -3), new(1), 10)
         ]);
@@ -45,6 +47,11 @@ public class RenderPipeline
         Renderer = new DiffuseRenderer(Scene);
     }
     public float Angle { get; set; } = 0;
+
+    private static SdfPlane CreateFloor() => new(Vector3.Zero, Vector3.UnitY)
+    {
+        Material = new DiffuseMaterial(new CheckerTexture<Vector3>(new(0.75f), new(0.12f, 0.16f, 0.2f), space: TextureSpace.UV))
+    };
 
     static float Sin(float x) => MathF.Sin(x);
 

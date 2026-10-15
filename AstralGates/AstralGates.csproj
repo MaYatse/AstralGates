@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HybridSdfEngine\HybridSdfEngine.csproj" />
-    <ProjectReference Include="..\SDFEngine\HybridSdfEngine.csproj" />
   </ItemGroup>
 
 </Project>

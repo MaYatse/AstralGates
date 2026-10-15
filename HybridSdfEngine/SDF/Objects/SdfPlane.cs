@@ -1,12 +1,28 @@
 ﻿using System.Numerics;
 
+using HybridSdfEngine.Materials;
+using HybridSdfEngine.Textures;
+
 namespace HybridSdfEngine.SDF.Objects;
 
-public class SdfPlane(Vector3 position, Vector3 normal, Vector3? color = null) : IRayIntersectable
+public class SdfPlane : IRayIntersectable
 {
-    public Vector3 Color => color ?? new Vector3(1);
-    private Vector3 _position = position;
-    private Vector3 _normal = NormalizeNormal(normal);
+    public Vector3 Color { get; }
+    public IMaterial? Material { get; set; }
+    private Vector3 _position;
+    private Vector3 _normal, _tangent;
+    private readonly Vector3 _localNormal;
+    private Quaternion _rotation = Quaternion.Identity;
+    private Quaternion _inverseRotation = Quaternion.Identity;
+
+    public SdfPlane(Vector3 position, Vector3 normal, Vector3? color = null)
+    {
+        _position = position;
+        _normal = NormalizeNormal(normal);
+        _localNormal = _normal;
+        _tangent = TextureContext.CreateTangent(_normal);
+        Color = color ?? Vector3.One;
+    }
 
     public float DistanceTo(Vector3 point) => Vector3.Dot(point - _position, _normal);
 
@@ -33,9 +49,20 @@ public class SdfPlane(Vector3 position, Vector3 normal, Vector3? color = null) :
             throw new ArgumentException("Rotation requires a finite nonzero axis and a finite angle.");
         var rotation = Quaternion.CreateFromAxisAngle(axis / length, angle);
         _normal = Vector3.Normalize(Vector3.Transform(_normal, rotation));
+        _tangent = Vector3.Normalize(Vector3.Transform(_tangent, rotation));
+        _rotation = Quaternion.Normalize(rotation * _rotation);
+        _inverseRotation = Quaternion.Inverse(_rotation);
     }
 
     public Vector3 GetNormal(Vector3 point) => _normal;
+
+    public TextureContext GetTextureContext(Vector3 point)
+    {
+        Vector3 offset = point - _position;
+        Vector3 bitangent = Vector3.Cross(_normal, _tangent);
+        return new(point, Vector3.Transform(offset, _inverseRotation), _normal, _localNormal,
+            new(Vector3.Dot(offset, _tangent), Vector3.Dot(offset, bitangent)), _tangent, bitangent);
+    }
 
     private static Vector3 NormalizeNormal(Vector3 normal)
     {

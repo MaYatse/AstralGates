@@ -1,11 +1,17 @@
 ﻿using System.Numerics;
 
+using HybridSdfEngine.Materials;
+using HybridSdfEngine.Textures;
+
 namespace HybridSdfEngine.SDF.Objects;
 
 public class SdfSphere(Vector3 position, float radius, Vector3? color = null) : IRayIntersectable
 {
     public Vector3 Color => color ?? new Vector3(1);
+    public IMaterial? Material { get; set; }
     private Vector3 _position = position;
+    private Quaternion _rotation = Quaternion.Identity;
+    private Quaternion _inverseRotation = Quaternion.Identity;
 
     public float DistanceTo(Vector3 point) => Vector3.Distance(_position, point) - radius;
 
@@ -30,9 +36,29 @@ public class SdfSphere(Vector3 position, float radius, Vector3? color = null) : 
 
     public void Move(Vector3 axis) => _position += axis;
 
-    public void Rotate(Vector3 axis, float angle) => throw new NotImplementedException();
+    public void Rotate(Vector3 axis, float angle)
+    {
+        float length = axis.Length();
+        if (!float.IsFinite(length) || length <= 0f || !float.IsFinite(angle))
+            throw new ArgumentException("Rotation requires a finite nonzero axis and a finite angle.");
+        _rotation = Quaternion.Normalize(_rotation * Quaternion.CreateFromAxisAngle(axis / length, angle));
+        _inverseRotation = Quaternion.Inverse(_rotation);
+    }
 
     public void Set(Vector3 position) => _position = position;
 
     public Vector3 GetNormal(Vector3 point) => Vector3.Normalize(point - _position);
+
+    public TextureContext GetTextureContext(Vector3 point)
+    {
+        Vector3 localPoint = Vector3.Transform(point - _position, _inverseRotation);
+        Vector3 localNormal = Vector3.Normalize(localPoint);
+        Vector2 uv = new(MathF.Atan2(localNormal.Z, localNormal.X) / MathF.Tau + 0.5f,
+            MathF.Acos(Math.Clamp(localNormal.Y, -1f, 1f)) / MathF.PI);
+        Vector3 localTangent = new(-localNormal.Z, 0, localNormal.X);
+        localTangent = localTangent.LengthSquared() > 1e-12f ? Vector3.Normalize(localTangent) : Vector3.UnitZ;
+        Vector3 normal = GetNormal(point);
+        Vector3 tangent = Vector3.Normalize(Vector3.Transform(localTangent, _rotation));
+        return new(point, localPoint, normal, localNormal, uv, tangent, Vector3.Cross(normal, tangent));
+    }
 }

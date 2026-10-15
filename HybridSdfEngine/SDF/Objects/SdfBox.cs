@@ -1,10 +1,14 @@
 ﻿using System.Numerics;
 
+using HybridSdfEngine.Materials;
+using HybridSdfEngine.Textures;
+
 namespace HybridSdfEngine.SDF.Objects;
 
 public class SdfBox(Vector3 position, Vector3 scale, Vector3? color = null) : IRayIntersectable
 {
     public Vector3 Color => color ?? new Vector3(1);
+    public IMaterial? Material { get; set; }
     private Vector3 _position = position;
     private Quaternion _rotation = Quaternion.Identity;
     private Quaternion _inverseRotation = Quaternion.Identity;
@@ -66,6 +70,11 @@ public class SdfBox(Vector3 position, Vector3 scale, Vector3? color = null) : IR
         Vector3 localPoint = Vector3.Transform(
                 point - _position,
                 _inverseRotation);
+        return Vector3.Normalize(Vector3.Transform(GetLocalNormal(localPoint), _rotation));
+    }
+
+    private Vector3 GetLocalNormal(Vector3 localPoint)
+    {
         Vector3 d = Vector3.Abs(localPoint) - scale;
         // On edges/corners several faces tie; choose one deterministically.
         Vector3 normal;
@@ -75,6 +84,24 @@ public class SdfBox(Vector3 position, Vector3 scale, Vector3? color = null) : IR
             normal = new(0, MathF.Sign(localPoint.Y), 0);
         else
             normal = new(0, 0, MathF.Sign(localPoint.Z));
-        return Vector3.Normalize(Vector3.Transform(normal, _rotation));
+        return normal;
+    }
+
+    public TextureContext GetTextureContext(Vector3 point)
+    {
+        Vector3 localPoint = Vector3.Transform(point - _position, _inverseRotation);
+        Vector3 localNormal = GetLocalNormal(localPoint);
+        Vector3 localTangent;
+        if (localNormal.X != 0f) localTangent = new(0, 0, -localNormal.X);
+        else if (localNormal.Y != 0f) localTangent = Vector3.UnitX;
+        else localTangent = new(localNormal.Z, 0, 0);
+        Vector3 localBitangent = Vector3.Cross(localNormal, localTangent);
+        float width = 2f * Vector3.Dot(Vector3.Abs(localTangent), scale);
+        float height = 2f * Vector3.Dot(Vector3.Abs(localBitangent), scale);
+        Vector2 uv = new(Vector3.Dot(localPoint, localTangent) / width + 0.5f,
+            Vector3.Dot(localPoint, localBitangent) / height + 0.5f);
+        Vector3 normal = Vector3.Normalize(Vector3.Transform(localNormal, _rotation));
+        Vector3 tangent = Vector3.Normalize(Vector3.Transform(localTangent, _rotation));
+        return new(point, localPoint, normal, localNormal, uv, tangent, Vector3.Cross(normal, tangent));
     }
 }

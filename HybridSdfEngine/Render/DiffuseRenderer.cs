@@ -2,6 +2,7 @@ using System.Numerics;
 using HybridSdfEngine.SDF;
 using HybridSdfEngine.SDF.Light;
 using HybridSdfEngine.SDF.Tracing;
+using HybridSdfEngine.Materials;
 
 namespace HybridSdfEngine.Render;
 
@@ -69,37 +70,49 @@ public sealed class DiffuseRenderer
         
         if (hit.ClosestObject is null) return new(0);
 
-        if (Tracer.Scene.LightSpan.IsEmpty) return new(0);
-
-        var normal = hit.ClosestObject.GetNormal(hit.CollisionPoint);
+        var obj = hit.ClosestObject;
+        Vector3 normal;
+        MaterialSample material;
+        if (obj.Material is { } surfaceMaterial)
+        {
+            var context = obj.GetTextureContext(hit.CollisionPoint);
+            normal = context.GeometricNormal;
+            material = surfaceMaterial.Sample(context);
+        }
+        else
+        {
+            // Keep legacy Color objects fast: no UV/trigonometry or per-hit material allocation.
+            normal = obj.GetNormal(hit.CollisionPoint);
+            material = new(obj.Color, Vector3.Zero, normal);
+        }
+        if (material.Albedo == Vector3.Zero) return material.Emission;
 
         Vector3 lighting = Vector3.Zero;
 
-        Vector3 albedo = hit.ClosestObject.Color;
-
         foreach (var light in Tracer.Scene.LightSpan)
-            lighting += SampleDiffuse(light, hit.CollisionPoint, normal);
+            lighting += SampleDiffuse(light, hit.CollisionPoint, normal, material.ShadingNormal);
 
-        return albedo * lighting;
+        return material.Emission + material.Albedo * lighting;
     }
 
-    private Vector3 SampleDiffuse(ILight light, Vector3 point, Vector3 normal)
+    private Vector3 SampleDiffuse(ILight light, Vector3 point, Vector3 geometricNormal, Vector3 shadingNormal)
     {
         int count = light.SampleCount;
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
-        if (count == 1) return Diffuse(light.Sample(point), point, normal);
+        if (count == 1) return Diffuse(light.Sample(point), point, geometricNormal, shadingNormal);
 
         Vector3 sum = Vector3.Zero;
         for (int i = 0; i < count; i++)
-            sum += Diffuse(light.Sample(point, i), point, normal);
+            sum += Diffuse(light.Sample(point, i), point, geometricNormal, shadingNormal);
         return sum / count;
     }
 
-    private Vector3 Diffuse(LightSample sample, Vector3 point, Vector3 normal)
+    private Vector3 Diffuse(LightSample sample, Vector3 point, Vector3 geometricNormal, Vector3 shadingNormal)
     {
-        float diffuse = MathF.Max(Vector3.Dot(normal, sample.DirectionToLight), 0f);
+        if (Vector3.Dot(geometricNormal, sample.DirectionToLight) <= 0f) return Vector3.Zero;
+        float diffuse = MathF.Max(Vector3.Dot(shadingNormal, sample.DirectionToLight), 0f);
         if (diffuse <= 0f || sample.Radiance == Vector3.Zero) return Vector3.Zero;
-        if (ShadowsEnabled && IsShadowed(point, normal, sample)) return Vector3.Zero;
+        if (ShadowsEnabled && IsShadowed(point, geometricNormal, sample)) return Vector3.Zero;
         return sample.Radiance * diffuse;
     }
 

@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AstralGates\AstralGates.csproj" />
-    <ProjectReference Include="..\SDFEngine\HybridSdfEngine.csproj" />
+    <ProjectReference Include="..\HybridSdfEngine\HybridSdfEngine.csproj" />
   </ItemGroup>
 
 </Project>

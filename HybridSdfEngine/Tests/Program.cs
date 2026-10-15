@@ -5,6 +5,7 @@ using HybridSdfEngine.Render;
 
 RayTracingChecks.Run();
 SceneChecks.Run();
+MaterialChecks.Run();
 LightChecks.Run();
 ExtendedLightChecks.Run();
 ShadowChecks.Run();
