@@ -3,6 +3,19 @@ using System.Numerics;
 using System.Text;
 using HybridSdfEngine.Render;
 
+if (args is ["--gif-checks"])
+{
+    await GifChecks.RunAsync();
+    return;
+}
+
+if (args is ["--input-smoke-test"])
+{
+    await InputChecks.RunNativeSmokeAsync();
+    return;
+}
+
+await InputChecks.RunAsync();
 RayTracingChecks.Run();
 SceneChecks.Run();
 MaterialChecks.Run();

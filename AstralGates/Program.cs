@@ -14,8 +14,11 @@ switch (args)
     case ["--timings"]:
         RunTimings();
         break;
+    case ["--gif", ..]:
+        Environment.ExitCode = await GifRenderCommand.RunAsync(args);
+        break;
     default:
-        Console.Error.WriteLine("Usage: AstralGates [--smoke-test | --timings]");
+        Console.Error.WriteLine($"Usage: AstralGates [--smoke-test | --timings | {GifRenderCommand.Usage}]");
         Environment.ExitCode = 2;
         break;
 }

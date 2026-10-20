@@ -42,6 +42,36 @@ public sealed class ImageTexture : ITexture<Vector3>
         }
     }
 
+    /// <summary>Decodes an image file. The file is closed before returning; alpha is ignored.</summary>
+    public static ImageTexture FromFile(string path,
+        TextureColorSpace colorSpace = TextureColorSpace.Srgb,
+        TextureAddressMode addressMode = TextureAddressMode.Repeat,
+        TextureFilter filter = TextureFilter.Bilinear)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        using var stream = File.OpenRead(path);
+        return FromStream(stream, colorSpace, addressMode, filter);
+    }
+
+    /// <summary>Decodes an image at the stream's current position. Leaves the stream open; alpha is ignored.</summary>
+    public static ImageTexture FromStream(Stream stream,
+        TextureColorSpace colorSpace = TextureColorSpace.Srgb,
+        TextureAddressMode addressMode = TextureAddressMode.Repeat,
+        TextureFilter filter = TextureFilter.Bilinear)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        if (!stream.CanRead) throw new ArgumentException("The image stream must be readable.", nameof(stream));
+        // StbImageSharp rewinds to absolute position zero while detecting the format.
+        using var buffer = !stream.CanSeek || stream.Position != 0 ? new MemoryStream() : null;
+        if (buffer is not null)
+        {
+            stream.CopyTo(buffer);
+            buffer.Position = 0;
+        }
+        var image = StbImageSharp.ImageResult.FromStream(buffer ?? stream, StbImageSharp.ColorComponents.RedGreenBlueAlpha);
+        return FromRgba32(image.Width, image.Height, image.Data, colorSpace, addressMode, filter);
+    }
+
     /// <summary>Creates an RGB texture from decoded RGBA8 pixels. Alpha is ignored.</summary>
     public static ImageTexture FromRgba32(int width, int height, ReadOnlySpan<byte> rgba,
         TextureColorSpace colorSpace = TextureColorSpace.Srgb,

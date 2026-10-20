@@ -8,4 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\HybridSdfEngine.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SharpHook.Testing" Version="8.0.1" />
+  </ItemGroup>
 </Project>

@@ -12,6 +12,7 @@ internal static class MaterialChecks
     {
         CheckTextures();
         CheckImages();
+        CheckImageLoading();
         CheckCoordinates();
         CheckRendering();
         Console.WriteLine("PASS: material sampling, UV/TBN transforms, image filtering/wrapping/sRGB, normal maps, emission, scalar maps and allocation-free shading.");
@@ -69,6 +70,52 @@ internal static class MaterialChecks
         Invalid(() => new ImageTexture(0, 1, []));
         Invalid(() => new ImageTexture(2, 1, [Vector3.One]));
         Invalid(() => ImageTexture.FromRgba32(1, 1, [0, 0, 0]));
+    }
+
+    private static void CheckImageLoading()
+    {
+        // 3x2, uncompressed 24-bit BMP: rows are stored bottom to top, channels are BGR.
+        byte[] bmp = Convert.FromHexString(
+            "424D4E000000000000003600000028000000030000000200000001001800" +
+            "000000001800000000000000000000000000000000000000" +
+            "FF4080FFFFFF0000000000000000FF00FF00FF0000000000");
+        TextureContext context = TextureContext.ForWorld(Vector3.Zero, Vector3.UnitY);
+        using var stream = new MemoryStream();
+        stream.Write([1, 2, 3, 4]);
+        stream.Write(bmp);
+        stream.Position = 4;
+        var srgb = ImageTexture.FromStream(stream);
+        Check(stream.CanRead, "Image loading must leave the caller's stream open");
+        Check(srgb.Width == 3 && srgb.Height == 2, "Decoded non-square image dimensions");
+        Check(srgb.AddressMode == TextureAddressMode.Repeat && srgb.Filter == TextureFilter.Bilinear,
+            "Default image sampling options");
+        Near(srgb.Sample(context with { UV = new(1f / 6f, 0.75f) }),
+            new(0.2158605f, 0.05126946f, 1), "Loaded colors are decoded from sRGB once");
+
+        string path = Path.Combine(Path.GetTempPath(), $"AstralGates-Texture-{Guid.NewGuid():N}.bmp");
+        try
+        {
+            File.WriteAllBytes(path, bmp);
+            var linear = ImageTexture.FromFile(path, TextureColorSpace.Linear,
+                TextureAddressMode.Clamp, TextureFilter.Nearest);
+            Check(linear.Width == 3 && linear.Height == 2, "File decoding dimensions");
+            Check(linear.AddressMode == TextureAddressMode.Clamp && linear.Filter == TextureFilter.Nearest,
+                "Custom image sampling options");
+            Vector3[] expected = [Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ,
+                new(128f / 255f, 64f / 255f, 1), Vector3.One, Vector3.Zero];
+            for (int y = 0; y < 2; y++)
+                for (int x = 0; x < 3; x++)
+                    Near(linear.Sample(context with { UV = new((x + 0.5f) / 3, (y + 0.5f) / 2) }),
+                        expected[y * 3 + x], "Decoded channel order and row orientation");
+            using var exclusive = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        }
+        finally { File.Delete(path); }
+
+        Invalid(() => ImageTexture.FromFile(" "));
+        Invalid(() => ImageTexture.FromStream(null!));
+        using var closed = new MemoryStream();
+        closed.Close();
+        Invalid(() => ImageTexture.FromStream(closed));
     }
 
     private static void CheckCoordinates()

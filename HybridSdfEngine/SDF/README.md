@@ -221,6 +221,18 @@ dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Releas
 
 ## Запуск приложения
 
+В интерактивном режиме доступны WASD и поворот камеры при зажатой ПКМ.
+Нажмите F1 для включения управления, Esc для отключения.
+Подробности о глобальном вводе и API — в [Input](../Input/README.md).
+
+Для сохранения анимации в GIF используйте `--gif`:
+
+```powershell
+dotnet run --project AstralGates/AstralGates.csproj -c Release -- --gif artifacts/render.gif 320 180 25 4
+```
+
+Настройки и API описаны в [экспорте GIF](../Export/README.md). Требуется FFmpeg в `PATH`.
+
 В обычном терминале запускается анимированный консольный рендер. Ctrl+C завершает
 цикл и освобождает `ConsoleDisplay`, восстанавливая курсор и режим терминала:
 

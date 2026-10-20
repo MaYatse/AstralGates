@@ -57,12 +57,31 @@ var image = ImageTexture.FromRgba32(2, 2, rgba,
 sphere.Material = new DiffuseMaterial(image);
 ```
 
-Встроенного декодера PNG/JPEG пока нет: изображение загружается на стороне
-приложения, а движок принимает RGB- или RGBA8-буфер. Альфа RGBA игнорируется;
-прозрачность и alpha cutout не реализованы. Загрузка и конвертация выполняются
-до запуска рендера, выборка текстур не создаёт объектов в куче.
+Для загрузки файла есть `ImageTexture.FromFile`, для потока — `FromStream`.
+Декодирование выполняет StbImageSharp:
 
-`FromRgba32` по умолчанию считает изображение цветовым sRGB. Конструктор с
+```csharp
+var albedo = ImageTexture.FromFile("Textures/albedo.png");
+var normal = ImageTexture.FromFile("Textures/normal.png",
+    colorSpace: TextureColorSpace.Linear);
+
+using var stream = File.OpenRead("Textures/albedo.jpg");
+var streamed = ImageTexture.FromStream(stream,
+    addressMode: TextureAddressMode.Clamp,
+    filter: TextureFilter.Nearest);
+```
+
+`FromFile` закрывает файл после загрузки. `FromStream` читает с текущей позиции
+и оставляет поток открытым: его освобождает вызывающий код. Если поток нельзя
+перематывать или его позиция не равна нулю, оставшиеся данные сначала копируются
+в буфер памяти для декодера. Относительные пути
+считаются от текущего рабочего каталога. Ошибки доступа и декодирования
+передаются вызывающему коду. Альфа игнорируется; прозрачность и alpha cutout
+не реализованы. Загрузка и конвертация выполняются до запуска рендера,
+выборка текстур не создаёт объектов в куче.
+
+`FromFile`, `FromStream` и `FromRgba32` по умолчанию считают изображение
+цветовым sRGB. Конструктор с
 `ReadOnlySpan<Vector3>` по умолчанию принимает линейные значения. Для sRGB
 преобразование в линейный RGB выполняется при создании текстуры, до фильтрации.
 Карты нормалей и скалярных данных следует загружать с `TextureColorSpace.Linear`.

@@ -10,4 +10,14 @@
     <Compile Remove="Tests/**/*.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Materials\" />
+    <Folder Include="Textures\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SharpHook" Version="8.0.1" />
+    <PackageReference Include="StbImageSharp" Version="2.30.16" />
+  </ItemGroup>
+
 </Project>
