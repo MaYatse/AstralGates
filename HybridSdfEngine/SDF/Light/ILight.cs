@@ -19,7 +19,7 @@ public interface ILight
     /// <summary>The multiplier applied to the light color.</summary>
     float Intensity { get; set; }
 
-    /// <summary>Positive number of samples whose diffuse contributions are averaged.</summary>
+    /// <summary>Positive number of samples whose lighting contributions are averaged.</summary>
     int SampleCount => 1;
 
     /// <summary>Returns the first sample. For an area light, use all SampleCount samples.</summary>

@@ -4,7 +4,7 @@ using SharpHook;
 namespace HybridSdfEngine.Input;
 
 /// <summary>Owns a global SharpHook hook. Start and dispose sequentially; only one may run per process.</summary>
-public sealed class SharpHookInputSource : IAsyncDisposable
+public sealed class SharpHookInputSource : IInputSource
 {
     private static readonly SemaphoreSlim GlobalHookSlot = new(1, 1);
     private readonly IGlobalHook _hook;
@@ -14,6 +14,12 @@ public sealed class SharpHookInputSource : IAsyncDisposable
 
     public InputState State { get; } = new();
     public Task Completion => _completion ?? Task.CompletedTask;
+
+    public InputFrame ReadFrame()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return State.ReadFrame();
+    }
 
     /// <summary>The optional hook is owned and disposed by this source.</summary>
     public SharpHookInputSource(IGlobalHook? hook = null)
@@ -69,6 +75,5 @@ public sealed class SharpHookInputSource : IAsyncDisposable
             State.Reset();
             if (_ownsSlot) GlobalHookSlot.Release();
         }
-        GC.SuppressFinalize(this);
     }
 }

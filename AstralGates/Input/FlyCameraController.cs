@@ -1,8 +1,9 @@
 using System.Numerics;
+using HybridSdfEngine.Input;
 using HybridSdfEngine.Render;
 using SharpHook.Data;
 
-namespace HybridSdfEngine.Input;
+namespace AstralGates.Input;
 
 /// <summary>F1 toggles controls, Escape disables them; WASD moves and right-drag looks around.</summary>
 public sealed class FlyCameraController(Camera camera)

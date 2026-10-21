@@ -17,7 +17,7 @@ public class RenderPipeline
     readonly SunLight _sl = new(new (0, -1, 0.5f), new (1), 1);
 
     public Scene Scene { get; }
-    public DiffuseRenderer Renderer { get; }
+    public BsdfRenderer Renderer { get; }
     public Camera Camera { get; } = new() { Position = new(0, 1, -10) };
 
     public RenderPipeline()
@@ -29,7 +29,10 @@ public class RenderPipeline
             _box,
             new SdfSphere(new(1, 1, 0), 1),
             new SdfSphere(new(-1, 1, 0), 1),
-            new SdfSphere(new(0, 4.5f, -.1f), .5f, Vector3.Normalize( new(222, 118, 194))),
+            new SdfSphere(new(0, 4.5f, -.1f), .5f)
+            {
+                Material = new DiffuseMaterial(Vector3.Normalize(new(222, 118, 194)))
+            },
 
             CreateFloor(),
         ], [
@@ -43,9 +46,10 @@ public class RenderPipeline
             CreateFloor(),
         ], [
             new PointLight(new(2, 5, -3), new(1), 10)
+            //_sl
         ]);
 #endif
-        Renderer = new DiffuseRenderer(Scene);
+        Renderer = new BsdfRenderer(Scene);
     }
     public float Angle { get; set; } = 0;
 
@@ -53,7 +57,12 @@ public class RenderPipeline
     {
         return new(new(0, 2, 0), new(0.5f, 2, .5f))
         {
-            Material = new DiffuseMaterial(new Vector3(0.8f, 0.2f, 0.1f))
+            Material = new DielectricMaterial
+            {
+                TransmissionTint = new ConstantTexture<Vector3>(new(0.9f, 1f, 1f)),
+                IndexOfRefraction = new ConstantTexture<float>(1.5f),
+                Roughness = new ConstantTexture<float>(0f)
+            }
         };
     }
 
@@ -70,8 +79,11 @@ public class RenderPipeline
     {
         return new(new(-3, 2, 1), 1)
         {
-            Material = new DiffuseMaterial(new CheckerTexture<Vector3>(
-                new(0.8f), new(0.1f, 0.15f, 0.2f), frequency: 2f, space: TextureSpace.UV))
+            Material = new PbrMaterial(new Vector3(0.95f, 0.65f, 0.3f))
+            {
+                Metallic = new ConstantTexture<float>(1f),
+                Roughness = new ConstantTexture<float>(0.15f)
+            }
         };
     }
 

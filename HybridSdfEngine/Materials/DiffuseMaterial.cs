@@ -34,9 +34,12 @@ public sealed class DiffuseMaterial : IMaterial
 
     public MaterialSample Sample(in TextureContext context)
     {
-        Vector3 albedo = Vector3.Clamp(Albedo.Sample(context), Vector3.Zero, Vector3.One);
-        Vector3 emission = Vector3.Max(Emission.Sample(context), Vector3.Zero);
-        return new(albedo, emission, GetShadingNormal(context));
+        Vector3 albedo = Albedo.Sample(context);
+        Vector3 emission = Emission.Sample(context);
+        MaterialValidation.Color(albedo, nameof(Albedo));
+        MaterialValidation.Color(emission, nameof(Emission));
+        return new(Vector3.Clamp(albedo, Vector3.Zero, Vector3.One),
+            Vector3.Max(emission, Vector3.Zero), GetShadingNormal(context));
     }
 
     private Vector3 GetShadingNormal(in TextureContext context)

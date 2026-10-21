@@ -7,7 +7,6 @@ namespace HybridSdfEngine.SDF.Objects;
 
 public interface ISdfObject
 {
-    Vector3 Color => new(1);
     IMaterial? Material => null;
     TextureContext GetTextureContext(Vector3 point) => TextureContext.ForWorld(point, GetNormal(point));
     float DistanceTo(Vector3 point);

@@ -167,14 +167,17 @@ internal static class MaterialChecks
     private static void CheckRendering()
     {
         var texture = new CountingTexture();
-        var plane = new SdfPlane(Vector3.Zero, Vector3.UnitY, Vector3.UnitX)
+        var plane = new SdfPlane(Vector3.Zero, Vector3.UnitY)
         {
             Material = new DiffuseMaterial(texture)
         };
         var light = new SunLight(-Vector3.UnitY, Vector3.One, 1f);
         var renderer = new DiffuseRenderer(new Scene([plane], [light, light, light]));
-        Near(renderer.RenderRay(Vector3.UnitY, -Vector3.UnitY), Vector3.UnitZ * 3f, "Material replaces legacy color");
+        Near(renderer.RenderRay(Vector3.UnitY, -Vector3.UnitY), Vector3.UnitZ * 3f, "Material supplies surface albedo");
         Check(texture.Calls == 1, "Read texture once per hit, not once per light");
+        plane.Material = null;
+        Near(renderer.RenderRay(Vector3.UnitY, -Vector3.UnitY), Vector3.One * 3f, "Missing material uses white diffuse albedo");
+        Check(texture.Calls == 1, "Default surface does not sample the former material");
 
         var emissive = new DiffuseMaterial(Vector3.Zero)
         {

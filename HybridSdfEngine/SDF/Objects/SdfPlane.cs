@@ -7,7 +7,6 @@ namespace HybridSdfEngine.SDF.Objects;
 
 public class SdfPlane : IRayIntersectable
 {
-    public Vector3 Color { get; }
     public IMaterial? Material { get; set; }
     private Vector3 _position;
     private Vector3 _normal, _tangent;
@@ -15,13 +14,12 @@ public class SdfPlane : IRayIntersectable
     private Quaternion _rotation = Quaternion.Identity;
     private Quaternion _inverseRotation = Quaternion.Identity;
 
-    public SdfPlane(Vector3 position, Vector3 normal, Vector3? color = null)
+    public SdfPlane(Vector3 position, Vector3 normal)
     {
         _position = position;
         _normal = NormalizeNormal(normal);
         _localNormal = _normal;
         _tangent = TextureContext.CreateTangent(_normal);
-        Color = color ?? Vector3.One;
     }
 
     public float DistanceTo(Vector3 point) => Vector3.Dot(point - _position, _normal);

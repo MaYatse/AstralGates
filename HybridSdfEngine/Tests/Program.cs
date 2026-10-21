@@ -17,8 +17,10 @@ if (args is ["--input-smoke-test"])
 
 await InputChecks.RunAsync();
 RayTracingChecks.Run();
+PrimitiveChecks.Run();
 SceneChecks.Run();
 MaterialChecks.Run();
+BsdfChecks.Run();
 LightChecks.Run();
 ExtendedLightChecks.Run();
 ShadowChecks.Run();

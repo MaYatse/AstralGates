@@ -1,6 +1,7 @@
 ﻿using HybridSdfEngine.Render;
 using System.Diagnostics;
 using HybridSdfEngine.Input;
+using AstralGates.Input;
 
 namespace AstralGates;
 
@@ -21,7 +22,7 @@ internal class ConsoleRenderer
         Console.CancelKeyPress += OnCancel;
         try
         {
-            await using var input = new SharpHookInputSource();
+            await using IInputSource input = new SharpHookInputSource();
             await input.StartAsync();
             var controller = new FlyCameraController(pipeline.Camera);
             pipeline.Angle = 10f;
@@ -45,7 +46,7 @@ internal class ConsoleRenderer
                 double currentTime = time.Elapsed.TotalSeconds;
                 float deltaTime = (float)(currentTime - lastTime);
                 lastTime = currentTime;
-                controller.Update(input.State.ReadFrame(), MathF.Min(deltaTime, 0.1f));
+                controller.Update(input.ReadFrame(), MathF.Min(deltaTime, 0.1f));
                 pipeline.UpdateScene(deltaTime);
             
                 var test = shader.RenderWithGammaSsaa4();

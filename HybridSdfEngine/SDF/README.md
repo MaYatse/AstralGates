@@ -2,7 +2,8 @@
 
 - `HybridSdfEngine.SDF.Scene` хранит фиксированный состав объектов и источников света.
 - `HybridSdfEngine.SDF.Tracing.SceneTracer` выполняет `Trace`, `Occluded`, `Map` и `GetClosestObject`.
-- `HybridSdfEngine.Render.DiffuseRenderer` рассчитывает диффузное освещение и тени через `RenderRay`.
+- `HybridSdfEngine.Render.BsdfRenderer` рассчитывает освещение, тени и BSDF-пути через `RenderRay`.
+- `DiffuseRenderer` сохранён как совместимое имя этого рендерера.
 
 `Scene` — обычный конкретный класс. Он копирует входные коллекции и предоставляет
 их через доступные только для чтения `Objects` и `Lights`. Сами объекты и источники
@@ -32,13 +33,20 @@ Vector3 pixel = renderer.RenderRay(new(0, 1, -10), Vector3.UnitZ);
 
 ## Гибридная трассировка
 
+Доступны также `SdfCylinder`, `SdfTorus`, `SdfCone` и `SdfTriangle`.
+Параметры, ориентация и примеры — в [описании примитивов](Objects/README.md).
+
 `SceneTracer.Trace` ищет ближайшую поверхность двумя способами:
 
 1. У объектов с `IRayIntersectable` вызывает `TryIntersect` и запоминает ближайшее прямое пересечение.
 2. Объекты, реализующие только `ISdfObject`, обходит ray marching до расстояния этого пересечения (или `maxDistance`, если его нет).
 3. Возвращает более близкое SDF-попадание либо найденный аналитически объект.
 
-Сферы, плоскости и коробки реализуют оба способа. Они сохраняют `DistanceTo`, поэтому могут участвовать в составных SDF. В текущей сцене все объекты пересекаются напрямую; пошаговый цикл не запускается.
+Сферы, плоскости, коробки, цилиндры, конусы и треугольники реализуют оба способа.
+Они сохраняют `DistanceTo`; у треугольника расстояние неотрицательное, поскольку
+у него нет внутреннего объёма. Торус обрабатывается через SDF ray marching.
+В текущей демонстрационной сцене все объекты пересекаются напрямую;
+пошаговый цикл не запускается.
 
 ```csharp
 var geometry = new Scene([
@@ -57,7 +65,8 @@ MarchResult hit = geometryTracer.Trace(
 if (hit.Hit)
 {
     var normal = hit.ClosestObject!.GetNormal(hit.CollisionPoint);
-    var albedo = hit.ClosestObject.Color;
+    var context = hit.ClosestObject.GetTextureContext(hit.CollisionPoint);
+    var albedo = hit.ClosestObject.Material?.Sample(context).Albedo ?? Vector3.One;
 }
 ```
 
@@ -83,11 +92,16 @@ if (hit.Hit)
 
 ## Материалы и текстуры
 
+Доступны `DiffuseMaterial`, `PbrMaterial` (GGX, roughness/metallic) и
+`DielectricMaterial` (Френель, отражение и преломление). Контракт и настройки
+вторичных лучей описаны в [BSDF](../Materials/Scattering/README.md).
+
 Примитивам можно назначить `Material`. `DiffuseMaterial` получает альбедо,
 излучение и карту нормалей через `ITexture<Vector3>`. Доступны постоянные,
 шахматные, RGB/RGBA-изображения и трипланарные цветовые текстуры; `ChannelTexture`
 извлекает скалярную карту. UV и касательный базис предоставляются объектом.
-При `Material = null` сохраняется прежнее поведение свойства `Color`.
+При `Material = null` используется белое диффузное покрытие. Цвет задаётся
+через альбедо `DiffuseMaterial`; отдельного `Color` у геометрии нет.
 
 Примеры и ограничения описаны в [материалах](../Materials/README.md).
 Основная демонстрационная сцена использует шахматный материал пола.
@@ -224,6 +238,7 @@ dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Releas
 В интерактивном режиме доступны WASD и поворот камеры при зажатой ПКМ.
 Нажмите F1 для включения управления, Esc для отключения.
 Подробности о глобальном вводе и API — в [Input](../Input/README.md).
+Контроллер и назначения клавиш находятся в [приложении](../../AstralGates/Input/README.md).
 
 Для сохранения анимации в GIF используйте `--gif`:
 

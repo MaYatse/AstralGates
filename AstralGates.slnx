@@ -5,6 +5,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/Tests/">
+    <Project Path="AstralGates.Tests/AstralGates.Tests.csproj" />
     <Project Path="HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj" />
   </Folder>
   <Project Path="AstralGates.Benchmarks/AstralGates.Benchmarks.csproj" />

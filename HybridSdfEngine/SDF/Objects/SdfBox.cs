@@ -5,9 +5,8 @@ using HybridSdfEngine.Textures;
 
 namespace HybridSdfEngine.SDF.Objects;
 
-public class SdfBox(Vector3 position, Vector3 scale, Vector3? color = null) : IRayIntersectable
+public class SdfBox(Vector3 position, Vector3 scale) : IRayIntersectable
 {
-    public Vector3 Color => color ?? new Vector3(1);
     public IMaterial? Material { get; set; }
     private Vector3 _position = position;
     private Quaternion _rotation = Quaternion.Identity;
