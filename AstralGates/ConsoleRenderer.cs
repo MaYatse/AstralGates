@@ -28,13 +28,13 @@ internal class ConsoleRenderer
             var controller = new FlyCameraController(pipeline.Camera);
             pipeline.Angle = 10f;
             var (width, height) = GetResolution();
-            Shader shader = new(width, height, pipeline.ShDr);
+            Shader shader = new(width, height, pipeline.ShDr, pipeline.ShDrSample);
 
             var time = Stopwatch.StartNew();
             double lastTime = time.Elapsed.TotalSeconds;
             int ssaa = 0;
             int renderScale = 100;
-            var lastStatus = (Width: 0, Height: 0, Enabled: false, Ssaa: -1, Scale: 0);
+            var lastStatus = (Width: 0, Height: 0, Enabled: false, Ssaa: -1, Scale: 0, Denoise: false);
             while (!cancellation.IsCancellationRequested)
             {
                 if (input.Completion.IsCompleted)
@@ -51,6 +51,8 @@ internal class ConsoleRenderer
                     ssaa = ssaa switch { 0 => 2, 2 => 4, _ => 0 };
                 if (inputFrame.WasPressed(KeyCode.VcF3))
                     renderScale = renderScale switch { 100 => 75, 75 => 50, _ => 100 };
+                if (inputFrame.WasPressed(KeyCode.VcF4))
+                    shader.SpatialDenoisingEnabled = !shader.SpatialDenoisingEnabled;
                 int renderWidth = Math.Max(1, (int)(((long)resX * renderScale + 50) / 100));
                 int renderHeight = Math.Max(1, (int)(((long)resY * renderScale + 50) / 100));
                 if (shader.ResolutionX != renderWidth || shader.ResolutionY != renderHeight)
@@ -67,10 +69,10 @@ internal class ConsoleRenderer
 
                 display.ColoredGraphic(renderWidth, renderHeight, pixels, resX, resY);
                 display.Render();
-                var status = (Width: resX, Height: resY, Enabled: controller.Enabled, Ssaa: ssaa, Scale: renderScale);
+                var status = (Width: resX, Height: resY, Enabled: controller.Enabled, Ssaa: ssaa, Scale: renderScale, Denoise: shader.SpatialDenoisingEnabled);
                 if (status != lastStatus)
                 {
-                    DrawInputStatus(resX, resY, renderWidth, renderHeight, controller.Enabled, ssaa, renderScale);
+                    DrawInputStatus(resX, resY, shader, controller.Enabled, ssaa, renderScale);
                     lastStatus = status;
                 }
                 if (!Console.IsInputRedirected)
@@ -87,11 +89,11 @@ internal class ConsoleRenderer
     private static (int Width, int Height) GetResolution() =>
         (Math.Max(1, Console.WindowWidth - 1), Math.Max(1, Console.WindowHeight - 2) * 2);
 
-    private static void DrawInputStatus(int width, int height, int renderWidth, int renderHeight, bool enabled, int ssaa, int renderScale)
+    private static void DrawInputStatus(int width, int height, Shader shader, bool enabled, int ssaa, int renderScale)
     {
         int row = (height + 1) / 2;
         if (Console.IsOutputRedirected || row >= Console.WindowHeight) return;
-        string text = $"F3: {renderScale}% | CPU: {renderWidth}x{renderHeight} | Grid: {width}x{height} px ({width}x{row} cells) | F2 SSAA: {(ssaa == 0 ? "off" : ssaa.ToString())} | Input: {(enabled ? "ON" : "OFF")} | F1 toggle | WASD move | Hold RMB to look | Esc pause | Ctrl+C exit";
+        string text = $"F4 Denoise: {(shader.SpatialDenoisingEnabled ? "Spatial" : "Off")} | F3: {renderScale}% | CPU: {shader.ResolutionX}x{shader.ResolutionY} | Grid: {width}x{height} px ({width}x{row} cells) | F2 SSAA: {(ssaa == 0 ? "off" : ssaa.ToString())} | Input: {(enabled ? "ON" : "OFF")} | F1 toggle | WASD move | Hold RMB to look | Esc pause | Ctrl+C exit";
         int available = Math.Min(width, Math.Max(0, Console.WindowWidth - 1));
         Console.SetCursorPosition(0, row);
         Console.Write(text[..Math.Min(text.Length, available)].PadRight(available));

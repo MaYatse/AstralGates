@@ -104,13 +104,16 @@ public class RenderPipeline
     }
 
     public Vector3 ShDr(Vector2 fragCord, Vector2 resolution)
+        => Renderer.RenderRay(Camera.Position, GetRayDirection(fragCord, resolution));
+
+    public RaySample ShDrSample(Vector2 fragCord, Vector2 resolution)
+        => Renderer.RenderRaySample(Camera.Position, GetRayDirection(fragCord, resolution));
+
+    private Vector3 GetRayDirection(Vector2 fragCord, Vector2 resolution)
     {
         var uv = (fragCord + new Vector2(0.5f) - resolution * 0.5f) / resolution.Y;
         uv.Y = -uv.Y;
 
-        Vector3 direction = Camera.GetRayDirection(uv);
-        Vector3 color = Renderer.RenderRay(Camera.Position, direction);
-
-        return color;
+        return Camera.GetRayDirection(uv);
     }
 }

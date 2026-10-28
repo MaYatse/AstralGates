@@ -52,7 +52,18 @@ public class BsdfRenderer
         Tracer = tracer;
     }
 
-    public Vector3 RenderRay(Vector3 origin, Vector3 direction)
+    public Vector3 RenderRay(Vector3 origin, Vector3 direction) =>
+        RenderRayCore(origin, direction, false, out _, out _);
+
+    /// <summary>Returns the same linear color as RenderRay, plus primary-hit data without tracing another ray.</summary>
+    public RaySample RenderRaySample(Vector3 origin, Vector3 direction)
+    {
+        Vector3 color = RenderRayCore(origin, direction, true, out Vector3 direct, out SurfaceGuide guide);
+        return new(color, direct, guide);
+    }
+
+    private Vector3 RenderRayCore(Vector3 origin, Vector3 direction, bool captureGuide,
+        out Vector3 direct, out SurfaceGuide guide)
     {
         float length = direction.Length();
         if (!float.IsFinite(length) || length <= 0f) throw new ArgumentException("Ray direction must be finite and nonzero.", nameof(direction));
@@ -60,17 +71,28 @@ public class BsdfRenderer
         bool transparentShadows = TransparentShadowsEnabled && HasTransmissiveSurfaces();
         var random = new PathRandom(origin, direction, Seed);
         Vector3 sum = Vector3.Zero;
+        direct = Vector3.Zero;
+        guide = default;
         for (int sample = 0; sample < SampleCount; sample++)
-            sum += RenderPath(origin, direction, transparentShadows, ref random);
+        {
+            sum += RenderPath(origin, direction, transparentShadows, captureGuide, ref random, out Vector3 sampleDirect, out SurfaceGuide sampleGuide);
+            if (!captureGuide) continue;
+            direct += sampleDirect;
+            if (sample == 0) guide = sampleGuide;
+        }
+        if (captureGuide) direct /= SampleCount;
         return sum / SampleCount;
     }
 
-    private Vector3 RenderPath(Vector3 origin, Vector3 direction, bool transparentShadows, ref PathRandom random)
+    private Vector3 RenderPath(Vector3 origin, Vector3 direction, bool transparentShadows, bool captureGuide,
+        ref PathRandom random, out Vector3 direct, out SurfaceGuide guide)
     {
         Span<float> iors = stackalloc float[34];
         iors[0] = OutsideIor;
         var path = new PathState(origin, direction);
         Vector3 radiance = Vector3.Zero;
+        direct = Vector3.Zero;
+        guide = default;
         for (int bounce = 0; bounce <= MaxBounces; bounce++)
         {
             var hit = Tracer.Trace(path.Origin, path.Direction, MaxDistance, MaxSteps);
@@ -82,7 +104,14 @@ public class BsdfRenderer
             MaterialSample surface = Surface(hit.ClosestObject!, hit.CollisionPoint, out Vector3 normal);
             IBsdf bsdf = surface.Bsdf;
             var context = BoundaryContext(surface, normal, path, iors);
-            radiance += path.Throughput * (surface.Emission + DirectLighting(surface, context, hit.CollisionPoint, transparentShadows));
+            Vector3 localRadiance = surface.Emission + DirectLighting(surface, context, hit.CollisionPoint, transparentShadows);
+            radiance += path.Throughput * localRadiance;
+            if (bounce == 0 && captureGuide)
+            {
+                direct = localRadiance;
+                bool secondary = MaxBounces > 0 && (TraceDiffuseBounces || (bsdf.Flags & (BsdfLobes.Glossy | BsdfLobes.Specular)) != 0);
+                guide = new(hit.Dist, surface.ShadingNormal, surface.Albedo, hit.ClosestObject, secondary);
+            }
             if (bounce == MaxBounces || !TraceDiffuseBounces && (bsdf.Flags & (BsdfLobes.Glossy | BsdfLobes.Specular)) == 0) break;
             if (!Scatter(surface, context, hit.CollisionPoint, ref path, iors, ref random)) break;
         }
