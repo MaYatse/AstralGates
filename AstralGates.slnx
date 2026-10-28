@@ -4,11 +4,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/Tests/">
-    <Project Path="AstralGates.Tests/AstralGates.Tests.csproj" />
-    <Project Path="HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj" />
-  </Folder>
-  <Project Path="AstralGates.Benchmarks/AstralGates.Benchmarks.csproj" />
   <Project Path="AstralGates/AstralGates.csproj" />
   <Project Path="HybridSdfEngine/HybridSdfEngine.csproj" Id="fc6f91ca-e77b-4b8d-856c-e21583e2c2e4" />
 </Solution>

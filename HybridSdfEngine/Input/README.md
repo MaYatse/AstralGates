@@ -74,12 +74,12 @@ SharpHook получает ввод глобально, включая друг�
 не устанавливают системный хук:
 
 ```powershell
-dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Release
+dotnet run --project Tests/HybridSdfEngine.Tests/ConsoleDisplayChecks.csproj -c Release
 ```
 
 Отдельная проверка запускает и останавливает настоящий системный хук без
 инъекции клавиш и движений мыши:
 
 ```powershell
-dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Release -- --input-smoke-test
+dotnet run --project Tests/HybridSdfEngine.Tests/ConsoleDisplayChecks.csproj -c Release -- --input-smoke-test
 ```

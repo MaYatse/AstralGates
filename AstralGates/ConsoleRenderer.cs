@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using HybridSdfEngine.Input;
 using AstralGates.Input;
+using SharpHook.Data;
 
 namespace AstralGates;
 
@@ -31,7 +32,9 @@ internal class ConsoleRenderer
 
             var time = Stopwatch.StartNew();
             double lastTime = time.Elapsed.TotalSeconds;
-            var lastStatus = (Width: 0, Height: 0, Enabled: false);
+            int ssaa = 0;
+            int renderScale = 100;
+            var lastStatus = (Width: 0, Height: 0, Enabled: false, Ssaa: -1, Scale: 0);
             while (!cancellation.IsCancellationRequested)
             {
                 if (input.Completion.IsCompleted)
@@ -40,23 +43,34 @@ internal class ConsoleRenderer
                     throw new InvalidOperationException("The input hook stopped unexpectedly.");
                 }
                 var (resX, resY) = GetResolution();
-                if (shader.ResolutionX != resX || shader.ResolutionY != resY)
-                    shader.SetResolution(resX, resY);
-
                 double currentTime = time.Elapsed.TotalSeconds;
                 float deltaTime = (float)(currentTime - lastTime);
                 lastTime = currentTime;
-                controller.Update(input.ReadFrame(), MathF.Min(deltaTime, 0.1f));
+                InputFrame inputFrame = input.ReadFrame();
+                if (inputFrame.WasPressed(KeyCode.VcF2))
+                    ssaa = ssaa switch { 0 => 2, 2 => 4, _ => 0 };
+                if (inputFrame.WasPressed(KeyCode.VcF3))
+                    renderScale = renderScale switch { 100 => 75, 75 => 50, _ => 100 };
+                int renderWidth = Math.Max(1, (int)(((long)resX * renderScale + 50) / 100));
+                int renderHeight = Math.Max(1, (int)(((long)resY * renderScale + 50) / 100));
+                if (shader.ResolutionX != renderWidth || shader.ResolutionY != renderHeight)
+                    shader.SetResolution(renderWidth, renderHeight);
+                controller.Update(inputFrame, MathF.Min(deltaTime, 0.1f));
                 pipeline.UpdateScene(deltaTime);
             
-                var test = shader.RenderWithGammaSsaa4();
+                var pixels = ssaa switch
+                {
+                    2 => shader.RenderWithGammaSsaa2(),
+                    4 => shader.RenderWithGammaSsaa4(),
+                    _ => shader.RenderWithGamma()
+                };
 
-                display.ColoredGraphic(resX, resY, test);
+                display.ColoredGraphic(renderWidth, renderHeight, pixels, resX, resY);
                 display.Render();
-                var status = (Width: resX, Height: resY, Enabled: controller.Enabled);
+                var status = (Width: resX, Height: resY, Enabled: controller.Enabled, Ssaa: ssaa, Scale: renderScale);
                 if (status != lastStatus)
                 {
-                    DrawInputStatus(resX, resY, controller.Enabled);
+                    DrawInputStatus(resX, resY, renderWidth, renderHeight, controller.Enabled, ssaa, renderScale);
                     lastStatus = status;
                 }
                 if (!Console.IsInputRedirected)
@@ -71,13 +85,14 @@ internal class ConsoleRenderer
     }
 
     private static (int Width, int Height) GetResolution() =>
-        (Math.Max(1, Console.WindowWidth / 2), Math.Max(1, Console.WindowHeight - 2));
+        (Math.Max(1, Console.WindowWidth - 1), Math.Max(1, Console.WindowHeight - 2) * 2);
 
-    private static void DrawInputStatus(int width, int row, bool enabled)
+    private static void DrawInputStatus(int width, int height, int renderWidth, int renderHeight, bool enabled, int ssaa, int renderScale)
     {
-        if (Console.IsOutputRedirected) return;
-        string text = $"Input: {(enabled ? "ON" : "OFF")} | F1 toggle | WASD move | Hold RMB to look | Esc pause | Ctrl+C exit";
-        int available = Math.Min(width * 2, Math.Max(0, Console.WindowWidth - 1));
+        int row = (height + 1) / 2;
+        if (Console.IsOutputRedirected || row >= Console.WindowHeight) return;
+        string text = $"F3: {renderScale}% | CPU: {renderWidth}x{renderHeight} | Grid: {width}x{height} px ({width}x{row} cells) | F2 SSAA: {(ssaa == 0 ? "off" : ssaa.ToString())} | Input: {(enabled ? "ON" : "OFF")} | F1 toggle | WASD move | Hold RMB to look | Esc pause | Ctrl+C exit";
+        int available = Math.Min(width, Math.Max(0, Console.WindowWidth - 1));
         Console.SetCursorPosition(0, row);
         Console.Write(text[..Math.Min(text.Length, available)].PadRight(available));
     }

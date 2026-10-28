@@ -77,5 +77,5 @@ A, B, C имеют UV (0,0), (1,0), (0,1). Координаты следуют �
 и теней включены в обычный запуск:
 
 ```powershell
-dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Release
+dotnet run --project Tests/HybridSdfEngine.Tests/ConsoleDisplayChecks.csproj -c Release
 ```

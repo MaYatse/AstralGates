@@ -52,7 +52,7 @@ FPS ограничен диапазоном 1–100. GIF хранит задер
 ## Проверка
 
 ```powershell
-dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Release -- --gif-checks
+dotnet run --project Tests/HybridSdfEngine.Tests/ConsoleDisplayChecks.csproj -c Release -- --gif-checks
 ```
 
 Требует FFmpeg. Проверяется декодирование двух кадров через StbImageSharp:

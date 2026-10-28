@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Tests/**/*.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="Materials\" />
     <Folder Include="Textures\" />
   </ItemGroup>

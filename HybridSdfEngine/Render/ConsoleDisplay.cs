@@ -2,16 +2,18 @@
 using System.ComponentModel;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace HybridSdfEngine.Render;
 
-/// <summary>Reusable true-color ANSI renderer. Use one instance from one thread.</summary>
+/// <summary>Reusable true-color ANSI half-block renderer. Use one instance from one thread.</summary>
 public sealed class ConsoleDisplay : IDisposable
 {
     private readonly Stream _output;
     private readonly bool _ownsOutput, _terminal, _restoreCursorVisible;
     private readonly nint _consoleHandle;
     private readonly uint _originalConsoleMode;
+    private readonly Encoding? _originalOutputEncoding;
     private byte[] _buffer = new byte[4096];
     private int _length;
     private int[] _pending = [], _displayed = [];
@@ -26,6 +28,9 @@ public sealed class ConsoleDisplay : IDisposable
         if (!_terminal) return;
         try
         {
+            // Raw UTF-8 glyph bytes must also be decoded as UTF-8 by the console host.
+            _originalOutputEncoding = Console.OutputEncoding;
+            Console.OutputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
             _restoreCursorVisible = !OperatingSystem.IsWindows() || Console.CursorVisible;
             if (OperatingSystem.IsWindows())
             {
@@ -37,7 +42,11 @@ public sealed class ConsoleDisplay : IDisposable
         }
         catch
         {
-            _output.Dispose();
+            try
+            {
+                if (_originalOutputEncoding is { } encoding) Console.OutputEncoding = encoding;
+            }
+            finally { _output.Dispose(); }
             throw;
         }
     }
@@ -95,15 +104,46 @@ public sealed class ConsoleDisplay : IDisposable
         }
     }
 
-    public void ColoredGraphic(int resolutionX, int resolutionY, Vector3[] colors)
+    /// <summary>One pixel per column, two pixel rows per terminal row. An unpaired bottom half is black.</summary>
+    public void ColoredGraphic(int resolutionX, int resolutionY, Vector3[] colors) =>
+        ColoredGraphic(resolutionX, resolutionY, colors, resolutionX, resolutionY);
+
+    /// <summary>Scales source pixels to the output pixel grid with nearest-neighbor sampling before half-block encoding.</summary>
+    public void ColoredGraphic(int sourceWidth, int sourceHeight, Vector3[] colors, int outputWidth, int outputHeight)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        int count = Validate(resolutionX, resolutionY, colors);
-        Prepare(resolutionX, resolutionY, count, colored: true);
-        for (int i = 0; i < count; i++)
+        Validate(sourceWidth, sourceHeight, colors);
+        int count = PixelCount(outputWidth, outputHeight);
+        Prepare(outputWidth, outputHeight, count, colored: true);
+        if (sourceWidth == outputWidth && sourceHeight == outputHeight)
         {
-            Vector3 pixel = colors[i];
-            _pending[i] = (Channel(pixel.X) << 16) | (Channel(pixel.Y) << 8) | Channel(pixel.Z);
+            for (int i = 0; i < count; i++) _pending[i] = PackColor(colors[i]);
+            return;
+        }
+        int previousSourceRow = -1;
+        for (int y = 0; y < outputHeight; y++)
+        {
+            int sourceRow = (int)((long)y * sourceHeight / outputHeight);
+            int targetOffset = y * outputWidth;
+            if (sourceRow == previousSourceRow)
+            {
+                // Repeated rows reuse already quantized pixels, without a full-size RGB buffer.
+                Array.Copy(_pending, targetOffset - outputWidth, _pending, targetOffset, outputWidth);
+                continue;
+            }
+            int sourceOffset = sourceRow * sourceWidth;
+            int previousSourceColumn = -1, color = 0;
+            for (int x = 0; x < outputWidth; x++)
+            {
+                int sourceColumn = (int)((long)x * sourceWidth / outputWidth);
+                if (sourceColumn != previousSourceColumn)
+                {
+                    color = PackColor(colors[sourceOffset + sourceColumn]);
+                    previousSourceColumn = sourceColumn;
+                }
+                _pending[targetOffset + x] = color;
+            }
+            previousSourceRow = sourceRow;
         }
     }
 
@@ -127,14 +167,53 @@ public sealed class ConsoleDisplay : IDisposable
         // Reset inherited terminal attributes, including reverse video.
         Append("\u001b[0m"u8);
         if (_terminal && !_cursorHidden) Append("\u001b[?25l"u8);
-        int activeColor = -1;
-        int cellWidth = _colored ? 2 : 1;
-        for (int y = 0; y < _height; y++)
-            AppendRow(y, cellWidth, compare, ref activeColor);
+        if (_colored)
+        {
+            int foreground = -1, background = -1;
+            for (int y = 0; y < _height; y += 2)
+                AppendColoredRow(y, compare, ref foreground, ref background);
+        }
+        else
+        {
+            for (int y = 0; y < _height; y++) AppendMaskRow(y, compare);
+        }
         if (_colored) Append("\u001b[0m"u8);
     }
 
-    private void AppendRow(int row, int cellWidth, bool compare, ref int activeColor)
+    private void AppendColoredRow(int row, bool compare, ref int foreground, ref int background)
+    {
+        bool positioned = false;
+        bool hasBottom = row + 1 < _height;
+        for (int x = 0; x < _width; x++)
+        {
+            int index = row * _width + x;
+            int top = _pending[index];
+            int bottom = hasBottom ? _pending[index + _width] : 0;
+            if (compare && _displayed[index] == top && (!hasBottom || _displayed[index + _width] == bottom))
+            {
+                positioned = false;
+                continue;
+            }
+            if (!positioned)
+            {
+                Cursor(row / 2 + 1, x + 1);
+                positioned = true;
+            }
+            if (foreground != top)
+            {
+                Color(top, foreground: true);
+                foreground = top;
+            }
+            if (background != bottom)
+            {
+                Color(bottom, foreground: false);
+                background = bottom;
+            }
+            Append("▀"u8);
+        }
+    }
+
+    private void AppendMaskRow(int row, bool compare)
     {
         bool positioned = false;
         for (int x = 0; x < _width; x++)
@@ -148,16 +227,10 @@ public sealed class ConsoleDisplay : IDisposable
             }
             if (!positioned)
             {
-                Cursor(row + 1, x * cellWidth + 1);
+                Cursor(row + 1, x + 1);
                 positioned = true;
             }
-            if (!_colored) MaskPixel(pixel);
-            else if (activeColor != pixel)
-            {
-                ColorAndPixel(pixel);
-                activeColor = pixel;
-            }
-            else Append("  "u8);
+            MaskPixel(pixel);
         }
     }
 
@@ -184,12 +257,14 @@ public sealed class ConsoleDisplay : IDisposable
 
     private static int Channel(float value) => value > 0 ? (int)MathF.Min(value * 255, 255) : 0;
 
-    private void ColorAndPixel(int color)
+    private static int PackColor(Vector3 pixel) => (Channel(pixel.X) << 16) | (Channel(pixel.Y) << 8) | Channel(pixel.Z);
+
+    private void Color(int color, bool foreground)
     {
-        // Maximum RGB command plus two spaces: 21 ASCII bytes.
-        Ensure(21);
+        // Maximum RGB command: 19 ASCII bytes. Glyphs are appended separately as UTF-8.
+        Ensure(19);
         Span<byte> target = _buffer.AsSpan(_length);
-        "\u001b[48;2;"u8.CopyTo(target);
+        (foreground ? "\u001b[38;2;"u8 : "\u001b[48;2;"u8).CopyTo(target);
         int offset = 7;
         WriteChannel(target, ref offset, color >> 16);
         target[offset++] = (byte)';';
@@ -197,8 +272,6 @@ public sealed class ConsoleDisplay : IDisposable
         target[offset++] = (byte)';';
         WriteChannel(target, ref offset, color & 255);
         target[offset++] = (byte)'m';
-        target[offset++] = (byte)' ';
-        target[offset++] = (byte)' ';
         _length += offset;
     }
 
@@ -212,12 +285,16 @@ public sealed class ConsoleDisplay : IDisposable
     private static int Validate<T>(int width, int height, T[] pixels)
     {
         ArgumentNullException.ThrowIfNull(pixels);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(width, (int.MaxValue - 1) / 2);
-        int count = checked(width * height);
+        int count = PixelCount(width, height);
         if (pixels.Length < count) throw new ArgumentException("Pixel array is smaller than the frame.", nameof(pixels));
         return count;
+    }
+
+    private static int PixelCount(int width, int height)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+        return checked(width * height);
     }
 
     private void Cursor(int row, int column)
@@ -267,7 +344,14 @@ public sealed class ConsoleDisplay : IDisposable
         {
             if (OperatingSystem.IsWindows() && _consoleHandle != 0)
                 SetConsoleMode(_consoleHandle, _originalConsoleMode);
-            if (_ownsOutput) _output.Dispose();
+            try
+            {
+                if (_originalOutputEncoding is { } encoding) Console.OutputEncoding = encoding;
+            }
+            finally
+            {
+                if (_ownsOutput) _output.Dispose();
+            }
         }
         GC.SuppressFinalize(this);
     }

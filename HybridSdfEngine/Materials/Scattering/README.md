@@ -150,7 +150,7 @@ subsurface scattering и MIS для совпадающих геометриче�
 ## Проверки
 
 ```powershell
-dotnet run --project HybridSdfEngine/Tests/ConsoleDisplayChecks.csproj -c Release
+dotnet run --project Tests/HybridSdfEngine.Tests/ConsoleDisplayChecks.csproj -c Release
 ```
 
 Проверяются нормировка Ламберта, взаимность и ограничение энергии GGX,
