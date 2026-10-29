@@ -54,10 +54,36 @@ public sealed class SharpHookInputSource : IInputSource
 
     private void OnEnabled(object? sender, HookEventArgs args) => _started.TrySetResult();
     private void OnDisabled(object? sender, HookEventArgs args) => State.Reset();
-    private void OnKeyPressed(object? sender, KeyboardHookEventArgs args) => State.SetKey(args.Data.KeyCode, true);
-    private void OnKeyReleased(object? sender, KeyboardHookEventArgs args) => State.SetKey(args.Data.KeyCode, false);
-    private void OnMousePressed(object? sender, MouseHookEventArgs args) => State.SetMouseButton(args.Data.Button, true);
-    private void OnMouseReleased(object? sender, MouseHookEventArgs args) => State.SetMouseButton(args.Data.Button, false);
+    private static readonly IReadOnlyDictionary<SharpHook.Data.KeyCode, InputKey> KeyMap =
+        Enum.GetValues<SharpHook.Data.KeyCode>()
+            .Where(key => key.ToString().StartsWith("Vc", StringComparison.Ordinal))
+            .Distinct()
+            .Select(key => (Native: key, Name: KeyName(key)))
+            .Where(item => Enum.TryParse<InputKey>(item.Name, out _))
+            .ToDictionary(item => item.Native, item => Enum.Parse<InputKey>(item.Name));
+    private static readonly IReadOnlyDictionary<SharpHook.Data.MouseButton, InputMouseButton> ButtonMap =
+        Enum.GetValues<SharpHook.Data.MouseButton>().Distinct()
+            .Where(button => Enum.TryParse<InputMouseButton>(button.ToString(), out _))
+            .ToDictionary(button => button, button => Enum.Parse<InputMouseButton>(button.ToString()));
+
+    private static string KeyName(SharpHook.Data.KeyCode key)
+    {
+        string name = key.ToString()[2..];
+        return name.Length == 1 && char.IsDigit(name[0]) ? "Digit" + name : name;
+    }
+
+    private void OnKeyPressed(object? sender, KeyboardHookEventArgs args) => SetKey(args.Data.KeyCode, true);
+    private void OnKeyReleased(object? sender, KeyboardHookEventArgs args) => SetKey(args.Data.KeyCode, false);
+    private void OnMousePressed(object? sender, MouseHookEventArgs args) => SetButton(args.Data.Button, true);
+    private void OnMouseReleased(object? sender, MouseHookEventArgs args) => SetButton(args.Data.Button, false);
+    private void SetKey(SharpHook.Data.KeyCode key, bool down)
+    {
+        if (KeyMap.TryGetValue(key, out var mapped)) State.SetKey(mapped, down);
+    }
+    private void SetButton(SharpHook.Data.MouseButton button, bool down)
+    {
+        if (ButtonMap.TryGetValue(button, out var mapped)) State.SetMouseButton(mapped, down);
+    }
     private void OnMouseMoved(object? sender, MouseHookEventArgs args) => State.SetMousePosition(new Vector2(args.Data.X, args.Data.Y));
     private void OnMouseMovedRelative(object? sender, MouseHookEventArgs args) => State.AddMouseDelta(new Vector2(args.Data.X, args.Data.Y));
 

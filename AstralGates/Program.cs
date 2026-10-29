@@ -3,7 +3,7 @@ using AstralGates;
 switch (args)
 {
     case []:
-        await new ConsoleRenderer().Start();
+        await new GameLoop().Start();
         break;
     case ["--gif", ..]:
         Environment.ExitCode = await GifRenderCommand.RunAsync(args);

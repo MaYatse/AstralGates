@@ -1,5 +1,4 @@
 using System.Numerics;
-using SharpHook.Data;
 
 namespace HybridSdfEngine.Input;
 
@@ -11,15 +10,15 @@ public sealed class InputState
     private readonly InputFrame _frame = new();
     private bool _hasMousePosition;
 
-    public void SetKey(KeyCode key, bool down)
+    public void SetKey(InputKey key, bool down)
     {
         lock (_sync)
             SetButton(_pending.KeysDown, _pending.KeysPressed, _pending.KeysReleased, key, down);
     }
 
-    public void SetMouseButton(MouseButton button, bool down)
+    public void SetMouseButton(InputMouseButton button, bool down)
     {
-        if (button == MouseButton.NoButton) return;
+        if (button == InputMouseButton.NoButton) return;
         lock (_sync)
             SetButton(_pending.ButtonsDown, _pending.ButtonsPressed, _pending.ButtonsReleased, button, down);
     }

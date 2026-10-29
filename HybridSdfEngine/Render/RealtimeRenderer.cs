@@ -9,7 +9,7 @@ using HybridSdfEngine.SDF.Objects;
 namespace HybridSdfEngine.Render;
 
 /// <summary>Deterministic direct PBR, prefiltered IBL and a shared budget of ideal secondary rays.</summary>
-public sealed class RealtimeRenderer : BsdfRenderer
+public sealed class RealtimeRenderer : RayRendererBase
 {
     private int _maxSecondaryRays = 2, _maxLights = 8, _maxLightSamples = 4;
     private float _reflectionRoughnessLimit = 0.05f;

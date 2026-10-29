@@ -11,7 +11,7 @@
 - `InputFrame` предоставляет состояния удержания, нажатия, отпускания,
   абсолютную позицию и накопленное смещение мыши.
 
-Коды клавиш и кнопок — `KeyCode` и `MouseButton` из `SharpHook.Data`.
+Коды клавиш и кнопок — `InputKey` и `InputMouseButton` из `HybridSdfEngine.Input`.
 Все они доступны через одинаковые методы; зарезервированных клавиш у модуля нет.
 Собственный источник может реализовать `IInputSource` и наполнять `InputState`
 событиями выбранной оконной библиотеки или тестовыми данными.
@@ -20,17 +20,16 @@
 
 ```csharp
 using HybridSdfEngine.Input;
-using SharpHook.Data;
 
 await using IInputSource input = new SharpHookInputSource();
 await input.StartAsync(); // Возвращается после готовности хука.
 
 // Один раз за итерацию приложения; тот же снимок передаётся всем потребителям.
 InputFrame frame = input.ReadFrame();
-bool held = frame.IsDown(KeyCode.VcEnter);
-bool pressed = frame.WasPressed(KeyCode.VcEnter);
-bool released = frame.WasReleased(KeyCode.VcEnter);
-bool mouseHeld = frame.IsDown(MouseButton.Button1);
+bool held = frame.IsDown(InputKey.Enter);
+bool pressed = frame.WasPressed(InputKey.Enter);
+bool released = frame.WasReleased(InputKey.Enter);
+bool mouseHeld = frame.IsDown(InputMouseButton.Button1);
 var mousePosition = frame.MousePosition;
 var mouseDelta = frame.MouseDelta;
 ```

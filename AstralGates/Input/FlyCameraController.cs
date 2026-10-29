@@ -1,7 +1,6 @@
 using System.Numerics;
 using HybridSdfEngine.Input;
 using HybridSdfEngine.Render;
-using SharpHook.Data;
 
 namespace AstralGates.Input;
 
@@ -30,24 +29,24 @@ public sealed class FlyCameraController(Camera camera)
     {
         ArgumentNullException.ThrowIfNull(input);
         Validate(deltaTime);
-        if (input.WasPressed(KeyCode.VcEscape))
+        if (input.WasPressed(InputKey.Escape))
         {
             Enabled = false;
             return;
         }
-        if (input.WasPressed(KeyCode.VcF1))
+        if (input.WasPressed(InputKey.F1))
         {
             Enabled = !Enabled;
             return; // Ignore movement accumulated before activation.
         }
         if (!Enabled) return;
 
-        if (input.IsDown(MouseButton.Button2) && !input.WasPressed(MouseButton.Button2))
+        if (input.IsDown(InputMouseButton.Button2) && !input.WasPressed(InputMouseButton.Button2))
             _camera.SetRotation(_camera.Yaw + input.MouseDelta.X * MouseSensitivity,
                 _camera.Pitch - input.MouseDelta.Y * MouseSensitivity);
 
-        float forward = (input.IsDown(KeyCode.VcW) ? 1f : 0f) - (input.IsDown(KeyCode.VcS) ? 1f : 0f);
-        float right = (input.IsDown(KeyCode.VcD) ? 1f : 0f) - (input.IsDown(KeyCode.VcA) ? 1f : 0f);
+        float forward = (input.IsDown(InputKey.W) ? 1f : 0f) - (input.IsDown(InputKey.S) ? 1f : 0f);
+        float right = (input.IsDown(InputKey.D) ? 1f : 0f) - (input.IsDown(InputKey.A) ? 1f : 0f);
         Vector3 direction = _camera.Forward * forward + _camera.Right * right;
         if (direction.LengthSquared() > 1f) direction = Vector3.Normalize(direction);
         _camera.Position += direction * (MoveSpeed * deltaTime);
