@@ -27,6 +27,9 @@ internal class ConsoleRenderer
             await input.StartAsync();
             var controller = new FlyCameraController(pipeline.Camera);
             pipeline.Angle = 10f;
+            pipeline.UpdateScene(0);
+            pipeline.BakeRealtimeEnvironment();
+            pipeline.Mode = RenderMode.Realtime;
             var (width, height) = GetResolution();
             Shader shader = new(width, height, pipeline.ShDr, pipeline.ShDrSample);
 
@@ -34,7 +37,8 @@ internal class ConsoleRenderer
             double lastTime = time.Elapsed.TotalSeconds;
             int ssaa = 0;
             int renderScale = 100;
-            var lastStatus = (Width: 0, Height: 0, Enabled: false, Ssaa: -1, Scale: 0, Denoise: false);
+            bool spatialDenoising = false;
+            var lastStatus = (Width: 0, Height: 0, Enabled: false, Ssaa: -1, Scale: 0, Denoise: false, Mode: RenderMode.Bsdf);
             while (!cancellation.IsCancellationRequested)
             {
                 if (input.Completion.IsCompleted)
@@ -51,8 +55,11 @@ internal class ConsoleRenderer
                     ssaa = ssaa switch { 0 => 2, 2 => 4, _ => 0 };
                 if (inputFrame.WasPressed(KeyCode.VcF3))
                     renderScale = renderScale switch { 100 => 75, 75 => 50, _ => 100 };
-                if (inputFrame.WasPressed(KeyCode.VcF4))
-                    shader.SpatialDenoisingEnabled = !shader.SpatialDenoisingEnabled;
+                if (inputFrame.WasPressed(KeyCode.VcF5))
+                    pipeline.Mode = pipeline.Mode == RenderMode.Realtime ? RenderMode.Bsdf : RenderMode.Realtime;
+                if (inputFrame.WasPressed(KeyCode.VcF4) && pipeline.Mode == RenderMode.Bsdf)
+                    spatialDenoising = !spatialDenoising;
+                shader.SpatialDenoisingEnabled = spatialDenoising && pipeline.Mode == RenderMode.Bsdf;
                 int renderWidth = Math.Max(1, (int)(((long)resX * renderScale + 50) / 100));
                 int renderHeight = Math.Max(1, (int)(((long)resY * renderScale + 50) / 100));
                 if (shader.ResolutionX != renderWidth || shader.ResolutionY != renderHeight)
@@ -69,7 +76,7 @@ internal class ConsoleRenderer
 
                 display.ColoredGraphic(renderWidth, renderHeight, pixels, resX, resY);
                 display.Render();
-                var status = (Width: resX, Height: resY, Enabled: controller.Enabled, Ssaa: ssaa, Scale: renderScale, Denoise: shader.SpatialDenoisingEnabled);
+                var status = (Width: resX, Height: resY, Enabled: controller.Enabled, Ssaa: ssaa, Scale: renderScale, Denoise: shader.SpatialDenoisingEnabled, Mode: pipeline.Mode);
                 if (status != lastStatus)
                 {
                     DrawInputStatus(resX, resY, shader, controller.Enabled, ssaa, renderScale);
@@ -89,11 +96,13 @@ internal class ConsoleRenderer
     private static (int Width, int Height) GetResolution() =>
         (Math.Max(1, Console.WindowWidth - 1), Math.Max(1, Console.WindowHeight - 2) * 2);
 
-    private static void DrawInputStatus(int width, int height, Shader shader, bool enabled, int ssaa, int renderScale)
+    private void DrawInputStatus(int width, int height, Shader shader, bool enabled, int ssaa, int renderScale)
     {
         int row = (height + 1) / 2;
         if (Console.IsOutputRedirected || row >= Console.WindowHeight) return;
-        string text = $"F4 Denoise: {(shader.SpatialDenoisingEnabled ? "Spatial" : "Off")} | F3: {renderScale}% | CPU: {shader.ResolutionX}x{shader.ResolutionY} | Grid: {width}x{height} px ({width}x{row} cells) | F2 SSAA: {(ssaa == 0 ? "off" : ssaa.ToString())} | Input: {(enabled ? "ON" : "OFF")} | F1 toggle | WASD move | Hold RMB to look | Esc pause | Ctrl+C exit";
+        string denoise = "BSDF only";
+        if (pipeline.Mode == RenderMode.Bsdf) denoise = shader.SpatialDenoisingEnabled ? "Spatial" : "Off";
+        string text = $"F5: {pipeline.Mode} | F3: {renderScale}% | F2 SSAA: {(ssaa == 0 ? "off" : ssaa.ToString())} | F4: {denoise} | CPU: {shader.ResolutionX}x{shader.ResolutionY} | Grid: {width}x{height} px ({width}x{row} cells) | Input: {(enabled ? "ON" : "OFF")} | F1 toggle | WASD move | Hold RMB to look | Esc pause | Ctrl+C exit";
         int available = Math.Min(width, Math.Max(0, Console.WindowWidth - 1));
         Console.SetCursorPosition(0, row);
         Console.Write(text[..Math.Min(text.Length, available)].PadRight(available));

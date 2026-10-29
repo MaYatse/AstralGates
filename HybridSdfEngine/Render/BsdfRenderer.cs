@@ -5,6 +5,7 @@ using HybridSdfEngine.SDF;
 using HybridSdfEngine.SDF.Light;
 using HybridSdfEngine.SDF.Objects;
 using HybridSdfEngine.SDF.Tracing;
+using HybridSdfEngine.Render.Environment;
 
 namespace HybridSdfEngine.Render;
 
@@ -52,11 +53,11 @@ public class BsdfRenderer
         Tracer = tracer;
     }
 
-    public Vector3 RenderRay(Vector3 origin, Vector3 direction) =>
+    public virtual Vector3 RenderRay(Vector3 origin, Vector3 direction) =>
         RenderRayCore(origin, direction, false, out _, out _);
 
     /// <summary>Returns the same linear color as RenderRay, plus primary-hit data without tracing another ray.</summary>
-    public RaySample RenderRaySample(Vector3 origin, Vector3 direction)
+    public virtual RaySample RenderRaySample(Vector3 origin, Vector3 direction)
     {
         Vector3 color = RenderRayCore(origin, direction, true, out Vector3 direct, out SurfaceGuide guide);
         return new(color, direct, guide);
@@ -152,20 +153,38 @@ public class BsdfRenderer
         public int Medium;
     }
 
-    private Vector3 DirectLighting(in MaterialSample surface, in BsdfContext context, Vector3 point, bool transparentShadows)
+    protected Vector3 DirectLighting(in MaterialSample surface, in BsdfContext context, Vector3 point, bool transparentShadows,
+        int maxLightSamples = int.MaxValue, int maxLights = int.MaxValue)
     {
         Vector3 sum = Vector3.Zero;
+        int processed = 0;
         foreach (ILight light in Tracer.Scene.LightSpan)
         {
-            int count = light.SampleCount;
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+            if (processed++ >= maxLights) break;
+            int available = light.SampleCount;
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(available);
+            int count = Math.Min(available, maxLightSamples);
             Vector3 contribution = Vector3.Zero;
             for (int index = 0; index < count; index++)
-                contribution += DirectSample(count == 1 ? light.Sample(point) : light.Sample(point, index),
+                contribution += DirectSample(LightSampleAt(light, point, index, count, available),
                     surface, context, point, transparentShadows);
             sum += contribution / count;
         }
         return sum;
+    }
+
+    private static LightSample LightSampleAt(ILight light, Vector3 point, int index, int count, int available)
+    {
+        if (available == 1) return light.Sample(point);
+        if (count == available) return light.Sample(point, index);
+        if (light is AreaLight area)
+        {
+            Vector2 position = EnvironmentSampling.Hammersley(index, count);
+            position.X += 0.5f / count;
+            position.Y = (position.Y + 0.5f / count) % 1;
+            return area.SampleAt(point, position);
+        }
+        return light.Sample(point, (int)((long)index * available / count));
     }
 
     private Vector3 DirectSample(LightSample light, in MaterialSample surface, in BsdfContext context,
@@ -232,14 +251,14 @@ public class BsdfRenderer
         public bool Finite;
     }
 
-    private bool HasTransmissiveSurfaces()
+    protected bool HasTransmissiveSurfaces()
     {
         foreach (ISdfObject obj in Tracer.Scene.ObjectSpan)
             if (obj.Material?.MayTransmitShadows == true) return true;
         return false;
     }
 
-    private static MaterialSample Surface(ISdfObject obj, Vector3 point, out Vector3 normal)
+    protected static MaterialSample Surface(ISdfObject obj, Vector3 point, out Vector3 normal)
     {
         if (obj.Material is { } material)
         {
@@ -252,15 +271,15 @@ public class BsdfRenderer
         return new(Vector3.One, Vector3.Zero, normal);
     }
 
-    private Vector3 Offset(Vector3 point, Vector3 normal, Vector3 direction) =>
+    protected Vector3 Offset(Vector3 point, Vector3 normal, Vector3 direction) =>
         point + normal * (Vector3.Dot(normal, direction) >= 0f ? ShadowBias : -ShadowBias);
 
-    private static void Positive(float value)
+    protected static void Positive(float value)
     {
         if (!float.IsFinite(value) || value <= 0f) throw new ArgumentOutOfRangeException(nameof(value));
     }
 
-    private static void Range(int value, int minimum, int maximum)
+    protected static void Range(int value, int minimum, int maximum)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(value, minimum);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(value, maximum);

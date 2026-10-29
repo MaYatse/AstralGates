@@ -18,6 +18,9 @@ public class RenderPipeline
 
     public Scene Scene { get; }
     public BsdfRenderer Renderer { get; }
+    public RealtimeRenderer RealtimeRenderer { get; }
+    public RenderMode Mode { get; set; } = RenderMode.Bsdf;
+    public BsdfRenderer ActiveRenderer => Mode == RenderMode.Realtime ? RealtimeRenderer : Renderer;
     public Camera Camera { get; } = new() { Position = new(0, 1, -10) };
 
     public RenderPipeline()
@@ -50,8 +53,16 @@ public class RenderPipeline
         ]);
 #endif
         Renderer = new BsdfRenderer(Scene);
+        RealtimeRenderer = new RealtimeRenderer(Renderer.Tracer);
     }
     public float Angle { get; set; } = 0;
+
+    public void BakeRealtimeEnvironment(int resolution = 32, int sampleCount = 64)
+    {
+        Vector3 probePosition = new(0, 5, -3);
+        foreach (ISdfObject receiver in Scene.Objects)
+            RealtimeRenderer.BakeEnvironmentFor(receiver, probePosition, resolution, sampleCount);
+    }
 
     private static SdfBox CreateBox()
     {
@@ -104,10 +115,10 @@ public class RenderPipeline
     }
 
     public Vector3 ShDr(Vector2 fragCord, Vector2 resolution)
-        => Renderer.RenderRay(Camera.Position, GetRayDirection(fragCord, resolution));
+        => ActiveRenderer.RenderRay(Camera.Position, GetRayDirection(fragCord, resolution));
 
     public RaySample ShDrSample(Vector2 fragCord, Vector2 resolution)
-        => Renderer.RenderRaySample(Camera.Position, GetRayDirection(fragCord, resolution));
+        => ActiveRenderer.RenderRaySample(Camera.Position, GetRayDirection(fragCord, resolution));
 
     private Vector3 GetRayDirection(Vector2 fragCord, Vector2 resolution)
     {

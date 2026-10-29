@@ -96,8 +96,18 @@ public class AreaLight : ILight
     {
         ArgumentOutOfRangeException.ThrowIfNegative(sampleIndex);
         ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(sampleIndex, SampleCount);
-        float u = ((sampleIndex % _samplesPerAxis + 0.5f) / _samplesPerAxis - 0.5f) * Size.X;
-        float v = ((sampleIndex / _samplesPerAxis + 0.5f) / _samplesPerAxis - 0.5f) * Size.Y;
+        return SampleAt(point, new((sampleIndex % _samplesPerAxis + 0.5f) / _samplesPerAxis,
+            (sampleIndex / _samplesPerAxis + 0.5f) / _samplesPerAxis));
+    }
+
+    /// <summary>Samples normalized panel coordinates in [0,1] without changing the configured sample grid.</summary>
+    public LightSample SampleAt(Vector3 point, Vector2 position)
+    {
+        if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
+            || position.X < 0 || position.X > 1 || position.Y < 0 || position.Y > 1)
+            throw new ArgumentOutOfRangeException(nameof(position));
+        float u = (position.X - 0.5f) * Size.X;
+        float v = (position.Y - 0.5f) * Size.Y;
         Vector3 samplePosition = Position + _right * u + _up * v;
         Vector3 offset = samplePosition - point;
         float distanceSquared = offset.LengthSquared();
